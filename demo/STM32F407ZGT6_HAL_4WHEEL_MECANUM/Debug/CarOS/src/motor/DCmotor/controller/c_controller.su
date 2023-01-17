@@ -1,3 +1,0 @@
-../CarOS/src/motor/DCmotor/controller/c_controller.c:33:6:PID_Init	32	static
-../CarOS/src/motor/DCmotor/controller/c_controller.c:64:6:PID_Update	32	static
-../CarOS/src/motor/DCmotor/controller/c_controller.c:83:6:PID_GetOutVal	16	static

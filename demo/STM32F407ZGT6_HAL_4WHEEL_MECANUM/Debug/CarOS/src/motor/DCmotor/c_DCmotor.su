@@ -1,7 +1,0 @@
-../CarOS/src/motor/DCmotor/c_DCmotor.c:47:6:DCMotor_Init	40	static
-../CarOS/src/motor/DCmotor/c_DCmotor.c:90:10:DCMotor_Create	32	static
-../CarOS/src/motor/DCmotor/c_DCmotor.c:119:6:DCMotor_SetVelocity	40	static
-../CarOS/src/motor/DCmotor/c_DCmotor.c:153:6:DCMotor_AdjustVelocity	24	static
-../CarOS/src/motor/DCmotor/c_DCmotor.c:181:13:DCMotorVelocityControl	24	static
-../CarOS/src/motor/DCmotor/c_DCmotor.c:228:6:DCMotor_AddPID	40	static
-../CarOS/src/motor/DCmotor/c_DCmotor.c:258:6:DCMotor_AddEncoder	32	static

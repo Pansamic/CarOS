@@ -1,7 +1,0 @@
-../CarOS/src/communication/c_command.c:41:6:io_AddCmd	320	static
-../CarOS/src/communication/c_command.c:118:6:io_CmdProcess	320	static
-../CarOS/src/communication/c_command.c:213:5:_io_ScanWriteParamData	32	static
-../CarOS/src/communication/c_command.c:317:6:io_CmdExecute	16	static
-../CarOS/src/communication/c_command.c:331:9:_io_GetParamSizeByStr	24	static
-../CarOS/src/communication/c_command.c:350:9:_io_GetParamType	16	static
-../CarOS/src/communication/c_command.c:440:9:_io_GetParamSizeByTypeCode	16	static
