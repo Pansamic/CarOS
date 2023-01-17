@@ -124,4 +124,4 @@ PC机使用串口调试工具向小车发送命令以使小车执行命令相关
 
 ## :calendar: 版本更新记录
 
-[版本更新记录](https://github.com/Pansamic/CarOS/blob/master/docs/develop.md)
+[版本更新记录](https://github.com/Pansamic/CarOS/blob/master/docs/update.md)
