@@ -167,7 +167,7 @@ void _Log_Write(const char *file,const char *func,const int line, LogLevel level
 
 	/* write customized string and format arguments behind system information which
 	 * is just written in the message buffer before */
-	io_vprintf(&cosio,fmt,ap);
+	_io_vprintf(&cosio,fmt,ap);
 
 	va_end(ap);
 

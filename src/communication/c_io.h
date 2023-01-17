@@ -32,6 +32,7 @@ extern "C" {
 
 #define COMMAND_MODE              0
 #define PACKAGE_MODE              1
+#define STRING_MODE               2
 
 #define MAXIODEVICEAMOUNT         6
 
@@ -64,23 +65,24 @@ extern "C" {
 typedef struct ioDeviceDefinition
 {
 	const char *Name;
-	COS_uart   huart;
+	COS_uart    huart;
 	/* double buffer */
-	uint8_t    ActivatedOutBufIndex;
-	uint8_t    Outputing;
-	uint8_t   *OutputBuf[2];
-	uint32_t   OutputBufSize[2];
-	uint32_t   OutputBufPosition[2];
+	uint8_t     ActivatedOutBufIndex;
+	uint8_t     Outputing;
+	uint8_t    *OutputBuf[2];
+	uint32_t    OutputBufSize[2];
+	uint32_t    OutputBufPosition[2];
 
 
 	/* input buffer related */
-	uint8_t   *InputBuf;
-	uint32_t   InputBufSize;
-	uint32_t   InputHeadIndex;
-	uint32_t   InputTailIndex;
-	uint8_t    InputBufFull;
+	uint8_t    *InputBuf;
+	uint32_t    InputBufSize;
+	uint32_t    InputHeadIndex;
+	uint32_t    InputTailIndex;
+	uint8_t     InputBufFull;
 
-	uint8_t    ReceiveMode;
+	uint8_t     ReceiveMode;
+	void      (*Stringcb)(char*);
 	COS_Cmd    *CmdList;
 	COS_PkgPrc *PkgProcessor;
 }COS_io;
@@ -98,43 +100,48 @@ extern COS_io cosio;
  *                                     GLOBAL FUNCTION                                        *
  *                                                                                            *
  **********************************************************************************************/
-/* main operation function */
-void       io_Init                    (COS_io *ioDevice, const char* Name, COS_uart huart, uint8_t *InputBuf, uint32_t InputBufLen, uint8_t *OutputBuf1, uint32_t OutputBuf1Len, uint8_t *OutputBuf2, uint32_t OutputBuf2Len);
-void       COS_printf                 (const char *fmt,...);
-void       cosioInit                  ();
-void       cosioTransmitOver          ();
-void       io_printf                  (COS_io *ioDevice,const char *fmt,...);
-void       io_Process                 ();
-void       io_DMAHandler              (COS_uart huart);
 
+void       io_Init                    (COS_io *ioDevice, const char* Name, COS_uart huart, uint8_t *InputBuf, uint32_t InputBufLen, uint8_t *OutputBuf1, uint32_t OutputBuf1Len, uint8_t *OutputBuf2, uint32_t OutputBuf2Len);
+void       cosioInit                  (void);
+void       io_Process                 (void);
+
+
+/*----------------*/
 /* output related */
+/*----------------*/
+void       COS_printf                 (const char *fmt,...);
+void       io_printf                  (COS_io *ioDevice,const char *fmt,...);
 void       io_SendData                (COS_io *ioDevice, void *pData, uint32_t Length);
-void       io_OutputProcess           (COS_io *ioDevice);
-void       io_vprintf                 (COS_io *ioDevice,const char *fmt, va_list ap);
+void       io_TransOverHandler        (COS_uart huart);
+
+void      _io_vprintf                 (COS_io *ioDevice,const char *fmt, va_list ap);
+void      _io_OutputProcess           (COS_io *ioDevice);
 uint32_t  _io_GetSpareOutBuf          (COS_io *ioDevice, uint8_t **pDataDst);
 uint8_t   _io_ActivatedBufEmpty       (COS_io *ioDevice);
 void      _io_Transmit                (COS_io *ioDevice, uint8_t *pData, uint32_t Length);
 
+/*---------------*/
 /* input related */
-void       io_InputProcess            (COS_io *ioDevice);
-void       io_UartRxIntHandler        (COS_uart huart);
-void       io_InputBufWrite           (COS_io *ioDevice, uint8_t *pData, uint32_t Length);
-void      _io_InputBufWriteByte       (COS_io *ioDevice, uint8_t Data);
-uint32_t   io_GetLine                 (COS_io *ioDevice, uint8_t *pDataDst, uint32_t DstLength);
+/*---------------*/
 uint32_t   io_GetData                 (COS_io *ioDevice, uint8_t *pDataDst, uint32_t Length);
+void       io_UartRxIntHandler        (COS_uart huart);
+void       io_StringMode              (COS_io *ioDevice, void(*Stringcb)(char*));
+void      _io_InputProcess            (COS_io *ioDevice);
+void      _io_InputBufWrite           (COS_io *ioDevice, uint8_t *pData, uint32_t Length);
+void      _io_InputBufWriteByte       (COS_io *ioDevice, uint8_t Data);
+uint32_t  _io_GetLine                 (COS_io *ioDevice, uint8_t *pDataDst, uint32_t DstLength);
 uint8_t   _io_GetByte                 (COS_io *ioDevice, uint8_t *pDataDst);
-void       io_InputBufRemove          (COS_io *ioDevice, uint32_t Length);
-uint8_t    io_InputBufRemoveByte      (COS_io *ioDevice);
-void       io_InputBufReset           (COS_io *ioDevice);
-uint8_t    io_InputBufFull            (COS_io *ioDevice);
-uint8_t    io_InputBufEmpty           (COS_io *ioDevice);
-uint32_t   io_InputBufCapacity        (COS_io *ioDevice);
-uint32_t   io_InputBufGetSize         (COS_io *ioDevice);
-uint32_t   io_InputBufGetSpare        (COS_io *ioDevice);
+void      _io_InputBufRemove          (COS_io *ioDevice, uint32_t Length);
+uint8_t   _io_InputBufRemoveByte      (COS_io *ioDevice);
+void      _io_InputBufReset           (COS_io *ioDevice);
+uint8_t   _io_InputBufFull            (COS_io *ioDevice);
+uint8_t   _io_InputBufEmpty           (COS_io *ioDevice);
+uint32_t  _io_InputBufCapacity        (COS_io *ioDevice);
+uint32_t  _io_InputBufGetSize         (COS_io *ioDevice);
+uint32_t  _io_InputBufGetSpare        (COS_io *ioDevice);
 
-/* receive mode */
 
-void       io_CommandMode             (COS_io *ioDevice);
+
 
 
 

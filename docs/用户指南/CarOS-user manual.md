@@ -1,13 +1,34 @@
 # CarOS 用户手册
 
+## 目录
+
+[1.项目简介](#1-项目简介)</br>
+----[1.1 功能说明](#11-功能说明)</br>
+----[1.2 开发想法](#12-开发想法)</br>
+[2.开始上手](#2-开始上手)</br>
+----[2.1 STM32CubeIDE / STM32CubeMX](#21-stm32cubeide--stm32cubemx)</br>
+----[2.2 STM32 Keil5 MDK](#22-stm32-keil5-mdk)</br>
+----[2.3 MSP432 CCS](#23-msp432-ccs)</br>
+[3.CarOS结构](#3-CarOS结构)</br>
+----[3.1 第5层-应用层](#31-第5层-应用层)</br>
+----[3.2 第4层-算法层](#32-第4层-算法层)</br>
+----[3.3 第3层-电机控制层](#33-第3层-电机控制层)</br>
+----[3.4 第2层-电机及芯片驱动层](#34-第2层-电机及芯片驱动层)</br>
+----[3.4 第1层-单片机gpio控制层](#35-第1层-单片机gpio控制层)</br>
+[4.调试经验分享](#4-调试经验分享)</br>
+
+
 ## 1. 项目简介
+
 ### 1.1 功能说明
+
 * 支持4轮麦克纳姆轮小车运动学算法
 * 
 
 ### 1.2 开发想法
 
 作者大二开始在导师的指导下开始电赛控制组训练，而训练的第一大项内容就是小车。这个小车是四驱麦克纳姆轮小车，但是导师和学长给的代码写的比较冗杂，很多东西混杂在一起，很难看懂，也没有文档，我就想自己写一个小车的代码库，要求如下：
+
 1. 包含多类电机驱动程序
 2. 包含多种电机驱动芯片的程序
 3. 兼容STM32和MSP432，并且改一个宏定义就能切换单片机
@@ -20,6 +41,7 @@
 10. 适配FreeRTOS
 
 要求总结：
+
 1. 模块具有独立性和协作性
 2. 可移植性高
 3. 鲁棒性高
@@ -181,56 +203,76 @@
 
 **加入CarOS内置io设备处理函数**
 
-打开工程根目录下的`Core/Src/usart.c`文件，添加一个串口回调函数，其中串口实例`huartx`是上述串口配置时创建的串口实例，不一定是下例中的`huart2`也可以是`huart1`等等，根据用户自行选择。
+打开工程根目录下`Core/Src/stm32xxx_it.c`这个关于中断的文件，找到刚刚设置的串口的中断服务函数，它原本应该是这个样子：
 
 ```c
-uint8_t Usart2RxBuf;
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+/**
+  * @brief This function handles USART2 global interrupt.
+  */
+void USART2_IRQHandler(void)
 {
-    if( huart == &huart2 )
-    {
-        _io_InputBufWriteByte(&cosio,&Usart2RxBuf);
-        HAL_UART_Receive_IT(&huart2,&Usart2RxBuf,1);
-    }
+  /* USER CODE BEGIN USART2_IRQn 0 */
+
+  /* USER CODE END USART2_IRQn 0 */
+  HAL_UART_IRQHandler(&huart2);
+  /* USER CODE BEGIN USART2_IRQn 1 */
+  
+  /* USER CODE END USART2_IRQn 1 */
 }
 ```
 
-找到`Core/Src/usart.c`中的`MX_USARTx_UART_Init(void)`(x为串口编号)，在最后添加一行
+找到`Core/Src/usart.c`中的`MX_USARTx_UART_Init(void)`(x为串口编号)，在最后添加一行，其中huartx中的x是数字，是那个串口中断函数所属的串口号。
 ```c
-HAL_UART_Receive_IT(&huart2,&Usart2RxBuf,1);
+io_UartRxIntHandler(&huartx);
 ```
 
 就像这样：
 ```c
-/* USART2 init function */
-
-void MX_USART2_UART_Init(void)
+/**
+  * @brief This function handles USART2 global interrupt.
+  */
+void USART2_IRQHandler(void)
 {
+  /* USER CODE BEGIN USART2_IRQn 0 */
 
-  /* USER CODE BEGIN USART2_Init 0 */
+  /* USER CODE END USART2_IRQn 0 */
+  HAL_UART_IRQHandler(&huart2);
+  /* USER CODE BEGIN USART2_IRQn 1 */
+  io_UartRxIntHandler(&huart2);
+  /* USER CODE END USART2_IRQn 1 */
+}
+```
+打开工程根目录下`Core/Src/stm32xxx_it.c`这个关于中断的文件，找到刚刚设置的串口DMA的中断服务函数，它原本应该是这个样子：
+```c
+/**
+  * @brief This function handles DMA1 stream6 global interrupt.
+  */
+void DMA1_Stream6_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Stream6_IRQn 0 */
 
-  /* USER CODE END USART2_Init 0 */
+  /* USER CODE END DMA1_Stream6_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_usart2_tx);
+  /* USER CODE BEGIN DMA1_Stream6_IRQn 1 */
 
-  /* USER CODE BEGIN USART2_Init 1 */
+  /* USER CODE END DMA1_Stream6_IRQn 1 */
+}
+```
 
-  /* USER CODE END USART2_Init 1 */
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART2_Init 2 */
-  HAL_UART_Receive_IT(&huart2,&BLEUsartRxBuffer,1);
+添加代码后应该是这个样子：
+```c
+/**
+  * @brief This function handles DMA1 stream6 global interrupt.
+  */
+void DMA1_Stream6_IRQHandler(void)
+{
+  /* USER CODE BEGIN DMA1_Stream6_IRQn 0 */
 
-  /* USER CODE END USART2_Init 2 */
-
+  /* USER CODE END DMA1_Stream6_IRQn 0 */
+  HAL_DMA_IRQHandler(&hdma_usart2_tx);
+  /* USER CODE BEGIN DMA1_Stream6_IRQn 1 */
+  io_TransOverHandler(&huart2);
+  /* USER CODE END DMA1_Stream6_IRQn 1 */
 }
 ```
 
@@ -272,48 +314,14 @@ void CarOSioProc(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(20);
     io_Process();
   }
   /* USER CODE END CarOSioProc */
 }
 ```
 
-任务函数中的`osDelay(20)`是延时20ms的意思，用户可以自行修改，时间短一点就对输入输出处理速度更快但是资源消耗就更大，时间长一点就对输入输出处理速度慢一点但是资源消耗就小一些。
+io处理的任务没有设置延时，但是之前在图形化配置FreeRTOS任务的时候把io处理任务设置优先级为idle，即空闲时就处理io设备，有其他任务的时候就做其他任务。
 
-打开工程根目录下`Core/Src/stm32xxx_it.c`这个关于中断的文件，找到刚刚设置的串口DMA的中断服务函数，它原本应该是这个样子：
-```c
-/**
-  * @brief This function handles DMA1 stream6 global interrupt.
-  */
-void DMA1_Stream6_IRQHandler(void)
-{
-  /* USER CODE BEGIN DMA1_Stream6_IRQn 0 */
-
-  /* USER CODE END DMA1_Stream6_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_usart2_tx);
-  /* USER CODE BEGIN DMA1_Stream6_IRQn 1 */
-
-  /* USER CODE END DMA1_Stream6_IRQn 1 */
-}
-```
-
-添加代码后应该是这个样子：
-```c
-/**
-  * @brief This function handles DMA1 stream6 global interrupt.
-  */
-void DMA1_Stream6_IRQHandler(void)
-{
-  /* USER CODE BEGIN DMA1_Stream6_IRQn 0 */
-
-  /* USER CODE END DMA1_Stream6_IRQn 0 */
-  HAL_DMA_IRQHandler(&hdma_usart2_tx);
-  /* USER CODE BEGIN DMA1_Stream6_IRQn 1 */
-  cosioTransmitOver();
-  /* USER CODE END DMA1_Stream6_IRQn 1 */
-}
-```
 
 ##### 车体运动学处理
 
@@ -436,7 +444,8 @@ int main()
 
 ### 2.3 MSP432 CCS
 
-## 3. 小车驱动结构
+## 3. CarOS结构
+
 层级越高越顶层，层级越低越底层
 
 * 第5层-应用层
@@ -465,8 +474,8 @@ int main()
 目前支持的电机驱动芯片列表：
 
 直流电机：
-- L298N
-- A4950
+
+- L298N模块（非芯片）
 
 步进电机：
 

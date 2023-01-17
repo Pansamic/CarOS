@@ -29,7 +29,6 @@ extern "C"{
  *                                         TYPEDEF                                            *
  *                                                                                            *
  **********************************************************************************************/
-typedef struct AppDefinition COS_App;
 
 
 /**********************************************************************************************
@@ -40,12 +39,12 @@ typedef struct AppDefinition COS_App;
  *         parameter is divided ONLY by ','! e.g. "int,float,uint32_t"
  *     3.CmdCallbackFunc:A pointer of function.
  * */
-struct AppDefinition
+typedef struct AppDefinition
 {
 	const char  *Name;
 	const char  *ParamsDescription;
 	void       (*CmdCallbackFunc)(uint8_t*);
-};
+}COS_App;
 
 
 /**********************************************************************************************

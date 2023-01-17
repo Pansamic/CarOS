@@ -24,7 +24,19 @@ extern "C" {
 #include "./src/debug/c_debug.h"
 #include "./src/communication/c_io.h"
 
-
+/*****************************************************************************************************
+ * @name:io_CommandMode
+ * @brief:start io device receive command mode, which enables io device to receive command
+ * @params:
+ *     1.ioDevice:pointer of io device
+ * @retval: none
+ * @author: Wang Geng Jie
+ *****************************************************************************************************/
+void io_CommandMode(COS_io *ioDevice)
+{
+	ioDevice->ReceiveMode = COMMAND_MODE;
+    _io_PkgProcessorDeinit(ioDevice);
+}
 /*****************************************************************************************************
  * @name:io_AddCmd
  * @brief:allocate a block of memory for 'COS_Cmd' struct and load parameters to it. The
@@ -107,7 +119,7 @@ void io_AddCmd(COS_io *ioDevice, const char *CmdName, const char *ParamsDescript
 
 
 /*****************************************************************************************************
- * @name:io_CmdProcess
+ * @name:_io_CmdProcess
  * @brief:seek for command and read value of parameters to parameter container and call callback func.
  * @params:
  *     1.CmdList:a chain of struct 'COS_Cmd'.
@@ -115,7 +127,7 @@ void io_AddCmd(COS_io *ioDevice, const char *CmdName, const char *ParamsDescript
  * @retval:none
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-void io_CmdProcess(COS_Cmd *CmdList, char *CmdStr)
+void _io_CmdProcess(COS_Cmd *CmdList, char *CmdStr)
 {
 	COS_Cmd *pCmdTemp = CmdList;        // command list operating pointer.
 	char *pCmdStrToken = NULL;          // get sub string of 'CmdStr'.
@@ -159,7 +171,7 @@ void io_CmdProcess(COS_Cmd *CmdList, char *CmdStr)
 	 * call callback function */
 	if(pCmdTemp->ParamsDescription==NULL)
 	{
-		io_CmdExecute(pCmdTemp);
+		_io_CmdExecute(pCmdTemp);
 		return ;
 	}
 	/* get first param value  */
@@ -195,7 +207,7 @@ void io_CmdProcess(COS_Cmd *CmdList, char *CmdStr)
 		/* get next param type */
 		pParamTypeToken = strtok_r(NULL,DivideSep,&pDivideTemp2);
 	}
-	io_CmdExecute(pCmdTemp);
+	_io_CmdExecute(pCmdTemp);
 }
 
 
@@ -228,74 +240,30 @@ int _io_ScanWriteParamData(char *str, uint8_t ParamType, uint8_t *pDataDst)
 		ErrorCode = sscanf(str,"%c",(unsigned char*)pDataDst);
 		break;
 	}
+	case PARAMTYPE_int8_t:
+	case PARAMTYPE_int16_t:
+	case PARAMTYPE_int32_t:
+	case PARAMTYPE_short:
 	case PARAMTYPE_int:
+	case PARAMTYPE_long:
 	{
 		ErrorCode = sscanf(str,"%d",(int*)pDataDst);
 		break;
 	}
+	case PARAMTYPE_uint8_t:
+	case PARAMTYPE_uint16_t:
+	case PARAMTYPE_uint32_t:
+	case PARAMTYPE_unsigned_short:
 	case PARAMTYPE_unsigned_int:
+	case PARAMTYPE_unsigned_long:
 	{
 		ErrorCode = sscanf(str,"%d",(unsigned int*)pDataDst);
 		break;
 	}
-	case PARAMTYPE_short:
-	{
-		ErrorCode = sscanf(str,"%d",(short*)pDataDst);
-		break;
-	}
-	case PARAMTYPE_unsigned_short:
-	{
-		ErrorCode = sscanf(str,"%d",(unsigned short*)pDataDst);
-		break;
-	}
-	case PARAMTYPE_long:
-	{
-		ErrorCode = sscanf(str,"%d",(long*)pDataDst);
-		break;
-	}
-	case PARAMTYPE_unsigned_long:
-	{
-		ErrorCode = sscanf(str,"%d",(unsigned long*)pDataDst);
-		break;
-	}
 	case PARAMTYPE_float:
-	{
-		ErrorCode = sscanf(str,"%f",(float*)pDataDst);
-		break;
-	}
 	case PARAMTYPE_double:
 	{
-		ErrorCode = sscanf(str,"%f",(double*)pDataDst);
-		break;
-	}
-	case PARAMTYPE_int8_t:
-	{
-		ErrorCode = sscanf(str,"%d",(int8_t*)pDataDst);
-		break;
-	}
-	case PARAMTYPE_int16_t:
-	{
-		ErrorCode = sscanf(str,"%d",(int16_t*)pDataDst);
-		break;
-	}
-	case PARAMTYPE_int32_t:
-	{
-		ErrorCode = sscanf(str,"%d",(int32_t*)pDataDst);
-		break;
-	}
-	case PARAMTYPE_uint8_t:
-	{
-		ErrorCode = sscanf(str,"%d",(uint8_t*)pDataDst);
-		break;
-	}
-	case PARAMTYPE_uint16_t:
-	{
-		ErrorCode = sscanf(str,"%d",(uint16_t*)pDataDst);
-		break;
-	}
-	case PARAMTYPE_uint32_t:
-	{
-		ErrorCode = sscanf(str,"%d",(uint32_t*)pDataDst);
+		ErrorCode = sscanf(str,"%f",(float*)pDataDst);
 		break;
 	}
 	default:
@@ -307,14 +275,14 @@ int _io_ScanWriteParamData(char *str, uint8_t ParamType, uint8_t *pDataDst)
 
 
 /*****************************************************************************************************
- * @name:io_CmdExecute
+ * @name:_io_CmdExecute
  * @brief: call callback function after command is found.
  * @params:
  *     1.Cmd:pointer of the found command
  * @retval:none
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-void io_CmdExecute(COS_Cmd *Cmd)
+void _io_CmdExecute(COS_Cmd *Cmd)
 {
 	Cmd->CmdCallbackFunc(Cmd->ParamsContainer);
 }

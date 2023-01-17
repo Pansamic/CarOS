@@ -84,11 +84,12 @@ typedef struct ioDataPackageProcessor
  **********************************************************************************************/
 /* package mode related */
 void       io_PackageMode             (COS_io *ioDevice, uint8_t FormatEnable, uint8_t RawDataSize, void *CallbackFunc);
-uint8_t    io_PackageProcess          (COS_io *ioDevice);
-void       io_PkgProcessorDeinit      (COS_io *ioDevice);
 void       io_SetPkgParseFmt          (COS_io *ioDevice, COS_PkgFmt *PkgFmt);
 void       io_SendDataPackage         (COS_io *ioDevice, void *pData, uint32_t Length, COS_PkgFmt *PkgFmt);
+
 uint8_t   _io_GetRawData              (COS_io *ioDevice);
+uint8_t   _io_PackageProcess          (COS_io *ioDevice);
+void      _io_PkgProcessorDeinit      (COS_io *ioDevice);
 uint16_t   Chk_XOR                    (uint8_t *pData, uint32_t DataLen);
 uint16_t   Chk_CRC16_CCITT            (uint8_t *pData, uint32_t DataLen);
 uint16_t   Chk_CRC16_CCITT_FALSE      (uint8_t *pData, uint32_t DataLen);

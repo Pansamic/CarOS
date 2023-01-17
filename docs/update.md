@@ -1,19 +1,5 @@
 # 开发版本更新记录
 
-## v1.3
-
-**io设备增加了数据流模式**
-
-`CarOS/src/communication/c_communication.h` `CarOS/src/communication/c_communication.c`增加了`Stream` 类型结构体对象。输入缓冲区处理函数增加了对数据流模式的支持。
-
-**改进了io设备缓冲区空间不足时的输出算法。**
-
-改进了`io_vprintf()`函数，增加了写入缓冲区之后，对缓冲区是否为满的判定。
-
-**提高了io设备输入输出函数的鲁棒性**
-
-增加了对于未正确初始化的io设备的检测和报错提示。
-
 ## v1.3.1
 
 **发布日期**：2023年1月17日
@@ -37,3 +23,18 @@
 **增加外设驱动**
 
 增加TF-Luna激光测距传感器驱动
+
+## v1.3
+
+**io设备增加了数据流模式**
+
+`CarOS/src/communication/c_communication.h` `CarOS/src/communication/c_communication.c`增加了`Stream` 类型结构体对象。输入缓冲区处理函数增加了对数据流模式的支持。
+
+**改进了io设备缓冲区空间不足时的输出算法。**
+
+改进了`io_vprintf()`函数，增加了写入缓冲区之后，对缓冲区是否为满的判定。
+
+**提高了io设备输入输出函数的鲁棒性**
+
+增加了对于未正确初始化的io设备的检测和报错提示。
+

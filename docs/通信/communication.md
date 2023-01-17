@@ -1,6 +1,33 @@
 # 通信模块说明
 
 ## 目录
+[1. 简介](#1-简介)</br>
+[2. 模块开发前期对于通信模块的想法](#2-模块开发前期对于通信模块的想法可忽略)</br>
+[3. 通用输入输出设备](#3-通用输入输出设备)</br>
+----[3.1 通用输入输出设备简介](#31-通用输入输出设备简介)</br>
+----[3.2 接口说明](#32-接口说明)</br>
+----[3.3 使用方法](#33-使用方法)</br>
+--------[3.3.1 系统内置io设备及命令控制台](#331-系统内置io设备及命令控制台)</br>
+--------[3.3.2 自定义io设备](#332-自定义io设备)</br>
+----[3.4 代码分析](#34-代码分析)</br>
+--------[3.4.1 io结构体](#341-io结构体)</br>
+--------[3.4.2 对于输入的处理](#342-对于输入的处理)</br>
+--------[3.4.3 对于输出的处理](#343-对于输出的处理)</br>
+----[3.5 可移植性](#35-可移植性)</br>
+----[3.6 可改进的方面](#36-可改进的方面)</br>
+[4. 命令解释器](#4-命令解释器)</br>
+----[4.1 命令解释器简介](#41-命令解释器简介)</br>
+----[4.2 接口说明](#42-接口说明)</br>
+----[4.3 使用方法](#43-使用方法)</br>
+----[4.4 代码分析](#44-代码分析)</br>
+[5. 数据包处理器](#5-数据包处理器)</br>
+----[5.1 简介](#51-简介)</br>
+----[5.2 接口说明](#52-接口说明)</br>
+----[5.3 使用方法](#53-使用方法)</br>
+----[5.4 代码分析](#54-代码分析)</br>
+--------[5.4.1 数据包格式结构体](#541-数据包格式结构体)</br>
+--------[5.4.2 数据包解析过程](#542-数据包解析过程)</br>
+[6. 模块拆卸指导](#6-模块拆卸指导)</br>
 
 
 ## 1. 简介
@@ -89,19 +116,6 @@ uint8_t COS_OutputBuffer2[1024*OUTPUT_BUFFER2_SIZE];
 io_Init(&cosio, "cosio", &huart2, COS_InputBuffer, INPUT_BUFFER_SIZE*1024, COS_OutputBuffer1, OUTPUT_BUFFER1_SIZE*1024, COS_OutputBuffer2, OUTPUT_BUFFER2_SIZE*1024);
 ```
 
-#### :round_pushpin: CarOS内置标准io设备初始化
-
-```c
-void cosioInit()
-```
-
-**简介**
-
-初始化`COS_io cosio`结构体，并且在其上加载预设好的命令。该函数基本无需用户调用，系统初始化函数已经调用了该函数。
-
-**参数列表**
-
-无参数
 #### :round_pushpin: 处理所有io设备
 ```c
 void io_Process()
@@ -147,36 +161,6 @@ void io_printf(COS_io *ioDevice,const char *fmt,...)
 2. **fmt**:带有格式化标记(如%d)的字符串。
 3. 可选参数:格式化字符串中对应的参数。
 
-**使用示例**
-#### :round_pushpin: 由参数列表打印格式化字符串
-```c
-void io_vprintf(COS_io *ioDevice,const char *fmt, va_list ap)
-```
-
-**简介**
-
-该函数从参数列表和格式化字符串中生成字符串并写入io设备的输出缓冲区，至于最终的串口发送由[io_OutputProcess()](#round_pushpin-所有io设备的输出处理)函数完成。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-2. **ap**:参数列表类型实例。
-
-**使用示例**
-
-以下是[io_printf()](#round_pushpin-io设备格式化输出)的完整代码。
-
-```c
-void io_printf(COS_io *ioDevice,const char *fmt,...)
-{
-	/* create a container to contain parameters */
-	va_list ap;
-	va_start(ap,fmt);
-	io_vprintf(ioDevice,fmt,ap);
-	va_end(ap);
-}
-```
-
 
 #### :round_pushpin: CarOS内置格式化输出
 ```c
@@ -221,39 +205,9 @@ void io_SendData(COS_io *ioDevice, uint8_t *pData, uint32_t Length);
 io_SendData(&ESPio,"AT+CWJAP=\"ssid\",\"password\"");
 ```
 
-#### :round_pushpin: 系统内置io设备传输完成函数
+#### :round_pushpin: io设备传输完成处理函数
 ```c
-void cosioTransmitOver()
-```
-
-**简介**
-
-该函数作用是清除系统内置io设备“正在发送”的标志位，以让系统内置io设备准备好下一次发送。如果在c_config.h中开启DMA传输，则该函数应该被放在DMA传输完成中断中。如果不开启DMA，则无需使用该函数。
-
-**参数列表**
-
-无参数
-
-**使用示例**
-```c
-/**
-  * @brief This function handles DMA1 stream6 global interrupt.
-  */
-void DMA1_Stream6_IRQHandler(void)
-{
-    /* USER CODE BEGIN DMA1_Stream6_IRQn 0 */
-
-    /* USER CODE END DMA1_Stream6_IRQn 0 */
-    HAL_DMA_IRQHandler(&hdma_usart2_tx);
-    /* USER CODE BEGIN DMA1_Stream6_IRQn 1 */
-    cosioTransmitOver();
-    /* USER CODE END DMA1_Stream6_IRQn 1 */
-}
-```
-
-#### :round_pushpin: io设备传输完成
-```c
-void io_TransmitOver(COS_io *ioDevice)
+void io_TransOverHandler(COS_uart huart)
 ```
 
 **简介**
@@ -262,10 +216,9 @@ void io_TransmitOver(COS_io *ioDevice)
 
 **参数列表**
 
-1. **ioDevice**:指向COS_io结构体的指针。
+1. huart:串口指针
 
 **使用示例**
-
 ```c
 /**
   * @brief This function handles DMA1 stream6 global interrupt.
@@ -277,656 +230,11 @@ void DMA1_Stream6_IRQHandler(void)
     /* USER CODE END DMA1_Stream6_IRQn 0 */
     HAL_DMA_IRQHandler(&hdma_usart2_tx);
     /* USER CODE BEGIN DMA1_Stream6_IRQn 1 */
-    io_TransmitOver(&ESP32io);
+    io_TransOverHandler(&huart2);
     /* USER CODE END DMA1_Stream6_IRQn 1 */
 }
 ```
 
-#### :round_pushpin: io设备的输出处理
-```c
-void io_OutputProcess(COS_io *ioDevice)
-```
-
-**简介**
-
-*不建议用户调用该函数*，因为所有io设备都在[io_Process()](#round_pushpin-处理所有io设备)被处理，而且[io_Process()](#round_pushpin-处理所有io设备)是被周期性调用的，所以无需用户单独处理某个io设备。
-
-该函数处理io设备的输出，它检查输出设备的活动缓冲区是否有数据待发送，如果有，则启动发送。该函数会动态调整io设备活动缓冲区为双缓冲中的主缓冲区。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-
-**使用示例**
-
-由于不建议用户单独调用该函数，在此展示该函数是如何被上一级函数调用的。
-
-```c
-void io_Process()
-{
-	for(uint8_t i=0 ; i<6 ; i++)
-	{
-		if(_iob[i]==NULL)
-		{
-			continue;
-		}
-		io_OutputProcess(_iob[i]);
-		io_InputProcess(_iob[i]);
-	}
-}
-```
-
-#### :round_pushpin: io设备的输入处理
-```c
-void io_InputProcess(COS_io *ioDevice)
-```
-
-**简介**
-
-该函数根据当前io设备接收模式(命令模式或数据包模式)来读取输入缓冲区中的数据进行处理。命令模式具体的处理函数见有关命令的文档`CarOS/docs/命令/command.md`；数据包处理的具体代码在本函数中。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-
-**使用示例**
-
-由于不建议用户单独调用该函数，在此展示该函数是如何被上一级函数调用的。
-
-```c
-void io_Process()
-{
-	for(uint8_t i=0 ; i<6 ; i++)
-	{
-		if(_iob[i]==NULL)
-		{
-			continue;
-		}
-		io_OutputProcess(_iob[i]);
-		io_InputProcess(_iob[i]);
-	}
-}
-```
-
-#### :round_pushpin: 获取输出缓冲区剩余空间
-```c
-uint32_t _io_GetSpareOutBuf(COS_io *ioDevice, uint8_t **pDataDst)
-```
-
-**简介**
-
-该函数是带有下划线开头的io底层函数，用于获取某io设备的输出双缓冲的活动缓冲区的剩余空间的地址和剩余空间大小。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-2. **pDataDst**:存放剩余空间起始地址的指针的指针。
-
-**返回值**
-
-当前活动缓冲区的剩余空间大小，单位：字节
-
-**使用示例**
-
-```c
-void io_SendData(COS_io *ioDevice, uint8_t *pData, uint32_t Length)
-{
-    uint8_t *DataDst = NULL;
-    uint32_t OutBufSpareSpace = 0;
-    ...
-    /* get valid idle output buffer pointer */
-    OutBufSpareSpace = _io_GetSpareOutBuf(ioDevice, &DataDst);
-
-    /* if there is no more space to write in */
-    if(OutBufSpareSpace == 0)
-    {
-        ...
-    }
-    ...
-}
-```
-
-#### :round_pushpin: 判断活动输出缓冲区是否为空
-```c
-uint8_t _io_ActivatedBufEmpty(COS_io *ioDevice)
-```
-
-**简介**
-
-该函数判断活动缓冲区是否为空并返回值
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-
-**使用示例**
-
-```c
-if(_io_ActivatedBufEmpty(&ESPio))
-{
-    ...
-}
-```
-
-#### :round_pushpin: io设备串口传输
-```c
-void _io_Transmit(COS_io *ioDevice, uint8_t *pData, uint32_t Length)
-```
-
-**简介**
-
-该函数是io设备输出数据的最底层函数，它调用串口输出函数输出数据。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-2. **pData**:待传输数据的指针。
-3. **Length**:待传输数据的长度。
-
-**使用示例**
-
-以下是io设备输出处理函数的部分代码。
-
-```c
-void io_OutputProcess(COS_io *ioDevice)
-{
-    ...
-    if(!_io_ActivatedBufEmpty(ioDevice))
-    {
-        ...
-
-        /* start transmission */
-        _io_Transmit(ioDevice, ioDevice->OutputBuf[ioDevice->ActivatedOutBufIndex], ioDevice->OutputBufPosition[ioDevice->ActivatedOutBufIndex]);
-
-        ...
-    }
-    ...
-}
-```
-
-#### :round_pushpin: 向输入缓冲区写入数据
-```c
-void io_InputBufWrite(COS_io *ioDevice, uint8_t *pData, uint32_t Length)
-```
-
-**简介**
-
-该函数可以向输入缓冲区写入指定长度的数据。一般情况下不会用到。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-2. **pData**:待写入数据的指针。
-3. **Length**:待写入数据的长度。
-
-**使用示例**
-
-```c
-io_InputBufWrite(&cosio, "ssas", 5);
-```
-
-#### :round_pushpin: 向输入缓冲区写入1字节
-```c
-void _io_InputBufWriteByte(COS_io *ioDevice, uint8_t *pData)
-```
-
-**简介**
-
-该函数非常有用，该函数应该被放在串口接收中断函数里面。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-2. **pData**:待写入数据的指针。
-
-**使用示例**
-
-以下是STM32CubeIDE生成的串口2接收中断函数。
-
-```c
-/**
-  * @brief This function handles USART2 global interrupt.
-  */
-void USART2_IRQHandler(void)
-{
-    /* USER CODE BEGIN USART2_IRQn 0 */
-
-    /* USER CODE END USART2_IRQn 0 */
-    HAL_UART_IRQHandler(&huart2);
-    /* USER CODE BEGIN USART2_IRQn 1 */
-    HAL_UART_Receive_IT(&huart2,(uint8_t *)BLEUsartRxBuffer,1);
-    _io_InputBufWriteByte(&cosio,BLEUsartRxBuffer);
-
-    /* USER CODE END USART2_IRQn 1 */
-}
-```
-
-#### :round_pushpin: 获取一行数据
-```c
-uint32_t io_GetLine(COS_io *ioDevice, uint8_t *pDataDst, uint32_t DstLength)
-```
-
-**简介**
-
-从io设备的输入缓冲区获取以`'\n'`结尾的第一个字符串。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-2. **pDataDst**:接收字符串的指针。
-
-**使用示例**
-
-以下是输入处理函数的部分代码。
-
-```c
-void io_InputProcess(COS_io *ioDevice)
-{
-    ...
-    else if(ioDevice->ReceiveMode==COMMAND_MODE)
-    {
-        char Cmd[256] = {0};
-        uint32_t CmdLineLength = 0;
-
-        /* io_GetLine() returns 0 when no command is got */
-        CmdLineLength = io_GetLine(ioDevice, (uint8_t*)Cmd, 256);
-        if(CmdLineLength!=0)
-        {
-            io_CmdProcess(ioDevice->CmdList, Cmd);
-        }
-    }
-    ...
-
-}
-
-```
-
-#### :round_pushpin: 从输入缓冲区获取指定长度的数据
-```c
-uint32_t io_GetData(COS_io *ioDevice, uint8_t *pDataDst, uint32_t Length)
-```
-
-**简介**
-
-复制输入缓冲区指定长度的数据至参数指针指向的内存空间并且删除输入缓冲区中的这一部分数据。一般不直接调用该函数，因为该函数会被命令解释器或者数据包处理器调用。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-2. **pDataDst**:接收数据的指针。
-3. **Length**:欲获取数据的大小
-
-**返回值**
-
-返回实际写入pDataDst指针所指的内存空间的数据大小。（可能输入缓冲区的数据大小小于欲获取的数据大小而导致数据获取不足）
-
-**使用示例**
-
-```c
-uint8_t Data[256];
-io_GetData(&cosio, Data, 256);
-```
-
-#### :round_pushpin: 从输入缓冲区获取1字节数据
-```c
-uint8_t _io_GetByte(COS_io *ioDevice, uint8_t *pDataDst)
-```
-
-**简介**
-
-从输入缓冲区读取1字节数据复制到参数指针指向的内存中，并且删除输入缓冲区的1字节数据。一般不直接调用该函数，因为该函数会被[io_GetData()](#round_pushpin-从输入缓冲区获取指定长度的数据)调用，直接使用[io_GetData()](#round_pushpin-从输入缓冲区获取指定长度的数据)就好了。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-2. **pDataDst**:接收数据的指针。
-
-**返回值**
-
-如果获取成功返回1，否则返回0。
-
-**使用示例**
-
-
-#### :round_pushpin: 从输入缓冲区删除数据
-```c
-void io_InputBufRemove(COS_io *ioDevice, uint32_t Length)
-```
-
-**简介**
-
-令输入缓冲区，即一个环形缓冲区的尾指针向前移动指定长度。这样就完成了删除操作。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-2. **Length**:欲删除的数据长度。
-
-**使用示例**
-
-```c
-io_InputBufRemove(&cosio, 5);
-```
-
-#### :round_pushpin:从输入缓冲区删除1字节
-```c
-uint8_t io_InputBufRemoveByte(COS_io *ioDevice)
-```
-
-**简介**
-
-令输入缓冲区，即一个环形缓冲区的尾指针向前移动1位。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-
-**返回值**
-
-如果删除失败返回0，删除成功返回1.
-
-**使用示例**
-
-```c
-io_InputBufRemoveByte(&cosio);
-```
-
-#### :round_pushpin: 重置输入缓冲区
-```c
-void io_InputBufReset(COS_io *ioDevice)
-```
-
-**简介**
-
-不擦除缓冲区的数据，但将环形缓冲区的头指针和尾指针均指向内存空间头部，清除full标志。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-
-**使用示例**
-
-```c
-io_InputBufReset(&ESPio);
-```
-
-#### :round_pushpin: 判断输入缓冲区是否已满
-```c
-uint8_t io_InputBufFull(COS_io *ioDevice)
-```
-
-**简介**
-
-判断输入缓冲区是否已满
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-
-**返回值**
-
-如果输入缓冲区已满返回1，否则返回0。
-
-**使用示例**
-
-```c
-if(io_InputBufFull(&ESPio))
-{
-    ...
-}
-```
-
-#### :round_pushpin: 判断输入缓冲区是否为空
-```c
-uint8_t io_InputBufEmpty(COS_io *ioDevice)
-```
-
-**简介**
-
-判断输入缓冲区是否为空
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-
-**返回值**
-
-如果输入缓冲区为空返回1，否则返回0。
-
-**使用示例**
-
-```c
-if(io_InputBufEmpty(&ESPio))
-{
-    ...
-}
-```
-
-#### :round_pushpin: 获取输入缓冲区空间大小
-```c
-uint32_t io_InputBufCapacity(COS_io *ioDevice)
-```
-
-**简介**
-
-通过读取io设备结构体成员`InputBufSize`获取输入缓冲区空间大小。单位：字节。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-
-**返回值**
-
-输入缓冲区的内存空间大小，单位：字节。
-
-**使用示例**
-
-```c
-uint32_t InputBufSize = 0;
-InputBufSize = io_InputBufCapacity(&ESPio);
-```
-
-#### :round_pushpin: 获取输入缓冲区已存储的数据量
-```c
-uint32_t io_InputBufGetSize(COS_io *ioDevice)
-```
-
-**简介**
-
-通过计算头尾指针的差值关系计算当前环形缓冲区的数据量。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-
-**返回值**
-
-输入缓冲区的数据量大小，单位：字节。
-
-**使用示例**
-
-
-#### :round_pushpin: 获取输入缓冲区剩余空间大小
-```c
-uint32_t io_InputBufGetSpare(COS_io *ioDevice)
-```
-
-**简介**
-
-通过计算环形缓冲区头尾指针的差值关系计算剩余空间的大小。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-
-**返回值**
-
-输入缓冲区剩余内存空间的大小。单位：字节
-
-**使用示例**
-
-```c
-uint32_t SpareSpaceSize = 0;
-SpareSpaceSize = io_InputBufGetSpare(&ESPio);
-```
-
-#### :round_pushpin: 设置io设备为数据包输入模式
-```c
-void io_PackageMode(COS_io *ioDevice, uint8_t DataCheckEnable, uint8_t DataPackageSize, void *CallbackFunc)
-```
-
-**简介**
-
-将io设备结构体成员`ReceiveMode`设置为`PACKAGE_MODE`，初始化io设备成员`PkgProcessor`。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-2. **DataCheckEnable**:设置数据包传输模式是否启用数据校验。
-3. **DataPackageSize**:设置单次接收的数据包的大小。单位：字节
-4. **CallbackFunc**:设置接收到数据包后要自动调用的函数的指针。
-
-**使用示例**
-
-```c
-/* Radario 开启数据包模式，开启数据校验，数据包大小128字节
- * 收到数据后的回调函数是 RadarProcess() */
-io_PackageMode(&Radario,1,128,RadarProcess);
-
-void RadarProcess(uint8_t* DataPkg)
-{
-    ...
-}
-```
-
-#### :round_pushpin: 设置io设备为命令模式
-```c
-void io_CommandMode(COS_io *ioDevice)
-```
-
-**简介**
-
-将io设备结构体成员`ReceiveMode`设置为`COMMAND_MODE`,重置io设备结构体成员`PkgProcessor`。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-
-**使用示例**
-
-```c
-io_CommandMode(&cosio);
-```
-
-#### :round_pushpin: 发送数据包
-```c
-void io_SendDataPackage(COS_io *ioDevice, void *pData, uint32_t Length)
-```
-
-**简介**
-
-除了原始数据之外，在原始数据前面加上了两个数据包头字节，在原始数据为不加上了一个校验字节，然后把整个数据包写入输出缓冲区。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-2. **pData**:待发送的数据的指针。
-3. **Length**:待发送的数据的大小。
-
-**使用示例**
-
-```c
-uint8_t RawData[4] = {0X3A,0X2B,0X5E,0X8F};
-io_SendDataPackage(&cosio,RawData,4);
-```
-
-#### :round_pushpin: 从输入缓冲区获取数据包并校验数据
-```c
-uint8_t io_GetDataPackageWithCheck(COS_io *ioDevice, uint8_t *pDataDst, uint8_t PkgLength)
-```
-
-**简介**
-
-从输入缓冲区寻找数据包头并校验数据值。如果校验成功则将数据包传递给数据包处理函数，校验不成功就从输入缓冲区删除该数据包。如果没有找到数据包就什么也不做。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-2. **pData**:待写入数据的指针。
-3. **PkgLength**:数据包的大小。
-
-**返回值**
-
-如果读输入缓冲区失败（输入缓冲区数据量小于给定的数据包的大小；数据包校验不正确）返回-1，如果输入缓冲区为空则返回0，如果读数据包成功则返回1.
-
-**使用示例**
-
-```c
-void io_InputProcess(COS_io *ioDevice)
-{
-    ...
-
-    if(ioDevice->ReceiveMode==PACKAGE_MODE)
-    {
-        int ErrorCode = 0;
-
-        ...
-
-        /* use data check */
-        else
-        {
-            ErrorCode = io_GetDataPackageWithCheck(ioDevice, ioDevice->PkgProcessor->DataDst, ioDevice->PkgProcessor->DatapackageSize);
-        }
-        ...
-    }
-    else if(ioDevice->ReceiveMode==COMMAND_MODE)
-    {
-        ...    
-    }
-    ...
-
-}
-```
-
-#### :round_pushpin: 从输入缓冲区获取数据包不校验数据
-```c
-int io_GetDataPackageNoCheck(COS_io *ioDevice, uint8_t *pDataDst, uint8_t PkgLength)
-```
-
-**简介**
-
-该函数获取指定长度的数据包但不使用数据校验。
-
-**参数列表**
-
-1. **ioDevice**:指向COS_io结构体的指针。
-2. **pData**:待写入数据的指针。
-3. **PkgLength**:数据包的大小。
-
-**返回值**
-
-如果读输入缓冲区失败（输入缓冲区数据量小于给定的数据包的大小；数据包校验不正确）返回-1，如果输入缓冲区为空则返回0，如果读数据包成功则返回1.
-
-**使用示例**
-
-```c
-void io_InputProcess(COS_io *ioDevice)
-{
-    ...
-    if(ioDevice->ReceiveMode==PACKAGE_MODE)
-    {
-        int ErrorCode = 0;
-        ...
-        /* don't use data check */
-        if(ioDevice->PkgProcessor->CheckDataEnable==0)
-        {
-            ErrorCode = io_GetDataPackageNoCheck(ioDevice, ioDevice->PkgProcessor->DataDst, ioDevice->PkgProcessor->DatapackageSize);
-        }
-        ...
-    }
-    ...
-}
-```
 
 ### 3.3 使用方法
 
@@ -951,7 +259,7 @@ extern USART_TypeDef* cosiouart;
 
 ##### 2. 部署io设备管理函数
 
-若使用FreeRTOS或其他实时操作系统，请设置每隔20ms-50ms调用一次`io_Process()`函数。以FreeRTOS为例：
+若使用FreeRTOS或其他实时操作系统，请设置空闲时调用`io_Process()`函数。以FreeRTOS为例：
 
 ```c
 void CarOS_ioProcess(void const * argument)
@@ -960,14 +268,11 @@ void CarOS_ioProcess(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(50);
     io_Process();
   }
   /* USER CODE END CarOS_ioProcess */
 }
 ```
-
-以上是FreeRTOS任务的执行函数，`osDelay(50)`代表每隔50ms执行一次`io_Process()`。
 
 ##### 3. 初始化cosio
 
@@ -1016,15 +321,15 @@ int main(void)
 
 缓冲区的类型都是`uint8_t`类型的数组，大小不宜小于128字节。
 
-##### 3. 编写io设备应用程序
+##### 3. 编写io设备应用程序（可选）
 
-以COS_App数组作为一个App列表，详细关于应用程序的说明请见`CarOS/docs/命令及应用程序/`文件夹
+以COS_App类型的结构体数组作为一个App列表，详细关于应用程序的说明请见`CarOS/docs/命令及应用程序/`文件夹
 
-##### 4. 初始化io设备
+##### 3. 初始化io设备
 
 调用`io_Init()`函数初始化。
 
-##### 5. 使用io_printf()输出格式化字符串
+##### 4. 使用io_printf()输出格式化字符串
 
 最终的模板是这样的：
 
@@ -1034,6 +339,7 @@ COS_io XXXio; // 名字可以自己随便取
 uint8_t XXX_InputBuffer[256];
 uint8_t XXX_OutputBuffer1[512];
 uint8_t XXX_OutputBuffer2[256];
+/* 如果该io设备不用命令模式可以不写AppList */
 COS_App myAppList[MYAPPAMOUNT]={
     {"xxx","xxx,xxx,xxx",xxxxcb}
 };
@@ -1058,13 +364,18 @@ void 串口中断服务函数()
 {
     static uint8_t ReceivedData;
     ...
-    io_WriteByte(&XXXio,*ReceivedData);
+    io_UartRxIntHandler(&huart2);
+    // io_UartRxIntHandler(USART2); (STM32固件库)
+    // io_UartRxIntHandler(EUSCI_A0_BASE);(MSP432)
     ...
 }
 void DMA传输完成中断服务函数()
 {
     ...
-    io_TransmitOver(&XXXio);
+    io_TransOverHandler(&huart2);
+    // io_TransOverHandler(USART2); (STM32固件库)
+    // io_TransOverHandler(EUSCI_A0_BASE);(MSP432)
+
     ...
 }
 ```
@@ -1073,42 +384,36 @@ void DMA传输完成中断服务函数()
 #### 3.4.1 io结构体
 
 ```c
-struct ioDeviceDefinition
+typedef struct ioDeviceDefinition
 {
 	const char *Name;
-
-#if USE_HAL_LIB
-	UART_HandleTypeDef* huart;
-#elif USE_FW_LIB
-	USART_TypeDef* huart;
-#elif USE_MSP432
-    void *huart;
-#endif
+	COS_uart    huart;
 	/* double buffer */
-	uint8_t ActivatedOutBufIndex;
-	uint8_t Outputing;
-	uint8_t *OutputBuf[2];
-	uint32_t OutputBufSize[2];
-	uint32_t OutputBufPosition[2];
+	uint8_t     ActivatedOutBufIndex;
+	uint8_t     Outputing;
+	uint8_t    *OutputBuf[2];
+	uint32_t    OutputBufSize[2];
+	uint32_t    OutputBufPosition[2];
 
 
 	/* input buffer related */
-	uint8_t *InputBuf;
-	uint32_t InputBufSize;
-	uint32_t InputHeadIndex;
-	uint32_t InputTailIndex;
-	uint8_t  InputBufFull;
+	uint8_t    *InputBuf;
+	uint32_t    InputBufSize;
+	uint32_t    InputHeadIndex;
+	uint32_t    InputTailIndex;
+	uint8_t     InputBufFull;
 
-	uint8_t  ReceiveMode;
-	COS_Cmd *CmdList;
-	COS_Pkg *PkgProcessor;
-};
+	uint8_t     ReceiveMode;
+	void      (*Stringcb)(char*);
+	COS_Cmd    *CmdList;
+	COS_PkgPrc *PkgProcessor;
+}COS_io;
 ```
 
 **结构体成员**
 
 1. **Name**:io设备名称，字符串。
-2. **huart**:发送和接收数据的串口的指针。
+2. **huart**:发送和接收数据的串口的指针，依MCU驱动库不同而不同，对于STM32-HAL库来说，是`&huart2`这种格式；对于STM32固件库来说，是`USART2`这种格式；对于MSP432的驱动程序库来说，是`EUSCI_A0_BASE`这种格式。详见COS_uart类型的定义。
 3. **ActivatedOutBufIndex**:当前输出活动缓冲区的下标，对于双缓冲来说，值为0或1。
 4. **Outputing**:当io设备正在发送数据时值为1，当io设备未发送数据时值为0。
 5. **OutputBuf**:2个元素的指针数组，用来指向两个输出缓冲区。
@@ -1120,8 +425,9 @@ struct ioDeviceDefinition
 11. **InputTailIndex**:环形缓冲区的尾部下标。
 12. **InputBufFull**:标志位，当输入缓冲区满时为1，未满时为0。
 13. **ReceiveMode**:标志位，用于指示当前io设备的接收模式是[命令模式](#342-命令模式和数据包模式)还是[数据包模式](#342-命令模式和数据包模式)
-14. **CmdList**:`COS_Cmd`类型的链表头指针，仅当io设备工作在命令模式有效。
-15. **PkgProcessor**:数据包模式下用于保存数据包工作状态的结构体的指针
+14. **Stringcb**:字符串模式下的回调函数。每从输入缓冲区获取到一行（以'\n'结尾的字符串）后将该字符串作为参数传递到回调函数中并执行回调函数。
+15. **CmdList**:`COS_Cmd`类型的链表头指针，仅当io设备工作在命令模式有效。
+16. **PkgProcessor**:数据包模式下用于保存数据包工作状态的结构体的指针
 
 **缓冲区结构的设计思路**
 
@@ -1135,21 +441,19 @@ struct ioDeviceDefinition
 
 #### 3.4.2 对于输入的处理
 
-##### 命令模式和数据包模式
+##### 命令模式、数据包模式和字符串模式
 
-这两个模式是针对接受到的数据的两种不同处理方式。通过`io_CommandMode()`或`io_PackageMode()`函数来切换io设备的数据处理器。具体详见[命令解释器](#4-命令解释器)和[数据包处理器](#5-数据包处理器)
-
-##### 
+这3个模式是针对接受到的数据的两种不同处理方式。通过`io_CommandMode()`或`io_PackageMode()`或`io_StringMode()`函数来切换io设备的数据处理器。具体详见[命令解释器](#4-命令解释器)和[数据包处理器](#5-数据包处理器)
 
 #### 3.4.3 对于输出的处理
 
-### 3.5 独立性
+若程序调用`io_printf()`（对于系统内置io设备来说是`COS_printf()`）或`io_SendData()`或`io_SendDataPackage()`这种输出函数后，数据会被写入当前激活的缓冲区中（因为输出缓冲区有两个），在下一次调用`io_Process()`函数之后，活动缓冲区中的数据会被串口发送出去，并且锁定这个缓冲区、将另外一个输出缓冲区设置为活动缓冲区。
 
-### 3.6 可移植性
+### 3.5 可移植性
 
-整个通用输入输出设备模块甚至可以移植到PC机上，VS2022亲测移植成功。只需要改`_io_Transmit()`函数就可以了。
+可以移植至很多MCU上。对于输出，只需要改`_io_Transmit()`函数就可以了。对于输入，需要修改COS_uart类型的定义、`io_UartRxIntHandler()`函数。
 
-### 3.7 可改进的方面
+### 3.6 可改进的方面
 
 可以增加其他通信外设如SPI、I2C等通信外设，这样的话，io设备的意义就不只是命令行了。这样一来很多外设都可以使用io设备的接口，每一个io设备都对应一个外设，这样可以方便集中统一管理所有外设。
 
@@ -1159,112 +463,241 @@ struct ioDeviceDefinition
 
 ### 4.1 命令解释器简介
 
+命令解释器获取io设备输入缓冲区中带有命令的字符串并且按照字符串解析出命令名称和参数，然后在io设备挂载的应用程序列表中查找对应的命令并且调用该嘤嘤程序的
+
 ### 4.2 接口说明
 
-#### :round_pushpin:
+#### :round_pushpin: 设置io设备为命令模式
 ```c
-
+void io_CommandMode(COS_io *ioDevice)
 ```
 
 **简介**
 
+将io设备结构体成员`ReceiveMode`设置为`COMMAND_MODE`,重置io设备结构体成员`PkgProcessor`。
+
 **参数列表**
+
+1. **ioDevice**:指向COS_io结构体的指针。
 
 **使用示例**
 
-#### :round_pushpin:
+```c
+io_CommandMode(&cosio);
+```
+
+#### :round_pushpin: 为io设备添加命令
 ```c
 void io_AddCmd(COS_io *ioDevice, const char *CmdName, const char *ParamsDescription, void* CmdCallbackFunc)
 ```
 
 **简介**
 
+这个函数是跟应用程序层的接口，应用程序通过这个函数来一次性给io设备挂载多个命令。该函数生成一个COS_Cmd结构体并且挂载至COS_io结构体的CmdList成员上。
+
 **参数列表**
+
+1. **ioDevice**:指向COS_io结构体的指针。
+2. **CmdName**:命令名称
+3. **ParamsDescription**:一个字符串，描述该命令的参数类型，如："int float float uint8_t"。每个类型之间用空格隔开。
+4. **CmdCallbackFunc**:命令回调函数指针。
 
 **使用示例**
 
-#### :round_pushpin:
 ```c
-void io_CmdProcess(COS_Cmd *CmdList, char *CmdStr)
+io_AddCmd(ioDevice, "scv", "float float float", SetCarVelocity);
 ```
 
-**简介**
-
-**参数列表**
-
-**使用示例**
-
-#### :round_pushpin:
-```c
-int _io_ScanWriteParamData(char *str, uint8_t ParamType, uint8_t *pDataDst)
-```
-
-**简介**
-
-**参数列表**
-
-**使用示例**
-
-#### :round_pushpin:
-```c
-void io_CmdExecute(COS_Cmd *Cmd)
-```
-
-**简介**
-
-**参数列表**
-
-**使用示例**
-
-#### :round_pushpin:
-```c
-uint8_t _io_GetParamSizeByStr(char *ParamStr)
-```
-
-**简介**
-
-**参数列表**
-
-**使用示例**
-
-#### :round_pushpin:
-```c
-uint8_t _io_GetParamType(char *Str)
-```
-
-**简介**
-
-**参数列表**
-
-**使用示例**
-
-#### :round_pushpin:
-```c
-uint8_t _io_GetParamSizeByTypeCode(uint8_t ParamType)
-```
-
-**简介**
-
-**参数列表**
-
-**使用示例**
 
 ### 4.3 使用方法
 
+使用`io_AddCmd()`函数为io设备挂载命令。按照用户手册中的系统配置方法配置好系统后，程序会自动解析接收到的字符串并且调用命令对应的回调函数。
+详见[用户手册](https://github.com/Pansamic/CarOS/blob/master/docs/%E7%94%A8%E6%88%B7%E6%8C%87%E5%8D%97/CarOS-user%20manual.md)和[命令及应用程序](https://github.com/Pansamic/CarOS/blob/master/docs/%E5%91%BD%E4%BB%A4%E5%8F%8A%E5%BA%94%E7%94%A8%E7%A8%8B%E5%BA%8F/application.md)
+
 ### 4.4 代码分析
 
-### 4.5 独立性
-
-### 4.6 可移植性
 
 ## 5. 数据包处理器
 
 ### 5.1 简介
 
+数据包解析器能够以自定义格式自动解析数据包并抽取原始数据作为参数传递给回调函数。这为用户提供了开发某些使用串口发送数据包的传感器的解决方案。
+
 ### 5.2 接口说明
+
+#### :round_pushpin: 设置io设备为数据包输入模式
+```c
+void io_PackageMode(COS_io *ioDevice, uint8_t FormatEnable, uint8_t RawDataSize, void *CallbackFunc)
+```
+
+**简介**
+
+将io设备结构体成员`ReceiveMode`设置为`PACKAGE_MODE`，初始化io设备成员`PkgProcessor`。
+
+**参数列表**
+
+1. **ioDevice**:指向COS_io结构体的指针。
+2. **FormatEnable**:设置数据包传输模式是否启用数据包格式解析。
+3. **RawDataSize**:单次接收的数据包中的原始数据的大小。单位：字节
+4. **CallbackFunc**:接收到数据包后要自动调用的函数的指针。
+
+**使用示例**
+
+```c
+/* Radario 开启数据包模式，开启数据校验，数据包大小128字节
+ * 收到数据后的回调函数是 RadarProcess() */
+io_PackageMode(&Radario,1,128,RadarProcess);
+
+void RadarProcess(uint8_t* DataPkg)
+{
+    ...
+}
+```
+#### :round_pushpin: 设置io设备数据包解析格式
+```c
+void io_SetPkgParseFmt(COS_io *ioDevice, COS_PkgFmt *PkgFmt)
+```
+
+**简介**
+
+该函数必须在io设备已经设置为数据包格式之后调用。该函数设置io设备以PkgFmt结构体指定的格式自动解析从串口发送来的数据包。
+
+**参数列表**
+
+1. **ioDevice**:指向COS_io结构体的指针。
+2. **PkgFmt**:指向数据包解析格式结构体的指针。
+
+**使用示例**
+
+```c
+const uint8_t SensorPkgHead[2]={0x5A,0X3B};
+const COS_PkgFmt SensorPkgFmt=
+{
+    1,               // enable package head
+    SensorPkgHead,   // use sensor head sequence
+    2,               // head sequence length equals two
+    1,               // enable data check
+    Chk_XOR,         // use XOR check algorithm
+    0,               // disable tail
+    NULL,            // use null tail sequence
+    0,               // tail sequence length equals 0
+    0                // unnecessary value, because tail is disabled
+};
+io_SetPkgParseFmt(&sensorio, &SensorPkgFmt);
+```
+
+#### :round_pushpin: 发送数据包
+```c
+void io_SendDataPackage(COS_io *ioDevice, void *pData, uint32_t Length, COS_PkgFmt *PkgFmt)
+```
+
+**简介**
+
+除了原始数据之外，在原始数据前面加上了两个数据包头字节，在原始数据为不加上了一个校验字节，然后把整个数据包写入输出缓冲区。
+
+**参数列表**
+
+1. **ioDevice**:指向COS_io结构体的指针。
+2. **pData**:待发送的数据的指针。
+3. **Length**:待发送的数据的大小。
+4. **PkgFmt**:指向PkgFmt结构体的指针，PkgFmt包含了数据包的解析格式。
+
+**使用示例**
+
+```c
+const COS_PkgFmt DefaultPkgFmt=
+{
+    1,               // enable package head
+    DefaultPkgHead,  // use default head sequence
+    2,               // head sequence length equals two
+    1,               // enable data check
+    Chk_XOR,         // use XOR check algorithm
+    0,               // disable tail
+    NULL,            // use null tail sequence
+    0,               // tail sequence length equals 0
+    0                // unnecessary value, because tail is disabled
+};
+uint8_t RawData[4] = {0X3A,0X2B,0X5E,0X8F};
+io_SendDataPackage(&cosio,RawData,4,&DefaultPkgFmt);
+```
 
 ### 5.3 使用方法
 
+#### 5.3.1 以指定格式解析数据包
+
+以下样例是TF-Luna激光测距传感器驱动代码节选。
+
+##### 创建数据包解析格式
+
+```c
+/* 创建一个报文头序列 */
+const uint8_t TFLunaPkgHead[2]={0x59,0x59};
+
+/* 创建一个数据包格式 */
+const COS_PkgFmt TFLunaPkgFmt=
+{
+    1,               // enable package head
+    TFLunaPkgHead,   // use default head sequence
+    2,               // head sequence length equals two
+    0,               // disable data check
+    NULL,            // don't use check algorithm
+    0,               // disable tail
+    NULL,            // use null tail sequence
+    0,               // tail sequence length equals 0
+    0                // tail after check value. unnecessary value, because tail is disabled
+};
+
+/* 创建一个数据包回调函数 */
+void TFLuna_ioPkgProccb(COS_io* ioDevice,uint8_t *DataPkg)
+{
+    ...
+}
+```
+
+##### 将io设备设置为数据包模式
+
+```c
+io_PackageMode(&(NewTFLuna->ioDevice), 1, 7, TFLuna_ioPkgProccb);
+```
+
+##### 让io设备使用自定义解析格式
+
+```c
+io_SetPkgParseFmt(&(NewTFLuna->ioDevice),&TFLunaPkgFmt);
+```
+
+#### 5.3.2 无格式接收指定长度数据
+
+##### 特殊配置数据包解析格式
+
+需要把数据包头、尾、校验都删掉，并指定数据长度。
+```c
+const COS_PkgFmt TFLunaPkgFmt=
+{
+    0,               // disable package head
+    NULL,            // unuse head sequence
+    0,               // head sequence length equals 0
+    0,               // disable data check
+    NULL,            // don't use check algorithm
+    0,               // disable tail
+    NULL,            // use null tail sequence
+    0,               // tail sequence length equals 0
+    0                // tail after check value. unnecessary value, because tail is disabled
+};
+
+```
+
+##### 加载解析格式
+
+```c
+io_PackageMode(&(NewTFLuna->ioDevice), 1, 7, TFLuna_ioPkgProccb);
+io_SetPkgParseFmt(&(NewTFLuna->ioDevice),&TFLunaPkgFmt);
+```
+
 ### 5.4 代码分析
+
+#### 5.4.1 数据包格式结构体
+
+#### 5.4.2 数据包解析过程
 
 ## 6. 模块拆卸指导

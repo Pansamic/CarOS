@@ -65,7 +65,7 @@ static void _io_InputBufAdvancePointer(COS_io *ioDevice);
  * @retval:none
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-void cosioInit()
+void cosioInit(void)
 {
 	/* set all mount point as NULL */
 	for(uint8_t i=0 ; i<6 ; i++)
@@ -100,7 +100,7 @@ void COS_printf(const char *fmt,...)
 {
 	va_list ap;
 	va_start(ap,fmt);
-	io_vprintf(&cosio,fmt,ap);
+	_io_vprintf(&cosio,fmt,ap);
 	va_end(ap);
 }
 
@@ -243,7 +243,7 @@ void io_printf(COS_io *ioDevice,const char *fmt,...)
 	/* create a container to contain parameters */
 	va_list ap;
 	va_start(ap,fmt);
-	io_vprintf(ioDevice,fmt,ap);
+	_io_vprintf(ioDevice,fmt,ap);
 	va_end(ap);
 }
 
@@ -256,55 +256,32 @@ void io_printf(COS_io *ioDevice,const char *fmt,...)
  * @retval:none
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-void io_Process()
+void io_Process(void)
 {
 	for(uint8_t i=0 ; i<MAXIODEVICEAMOUNT; i++)
 	{
 		if(_iob[i]!=NULL)
 		{
-			io_OutputProcess(_iob[i]);
-			io_InputProcess(_iob[i]);
+			_io_OutputProcess(_iob[i]);
+			_io_InputProcess(_iob[i]);
 		}
 	}
 }
 
 
 
-/*****************************************************************************************************
- * @name:io_CommandMode
- * @brief:start io device receive command mode, which enables io device to receive command
- * @params:
- *     1.ioDevice:pointer of io device
- * @retval: none
- * @author: Wang Geng Jie
- *****************************************************************************************************/
-void io_CommandMode(COS_io *ioDevice)
-{
-	ioDevice->ReceiveMode = COMMAND_MODE;
-	io_PkgProcessorDeinit(ioDevice);
-}
-/*****************************************************************************************************
- * @name:cosioTransmitOver
- * @brief:set member of 'Outputing' of cosio to 0, which indicates io device transmit over.
- * @params:none
- * @retval:none
- * @author: Wang Geng Jie
- *****************************************************************************************************/
-void cosioTransmitOver()
-{
-	cosio.Outputing = 0;
-}
+
 
 
 /*****************************************************************************************************
- * @name:io_DMAHandler
+ * @name:io_TransOverHandler
  * @brief:set member of 'Outputing' of an ioDevice to 0, which indicates io device transmit over.
  * @params:
  *     1.huart:pointer of uart instance.
  * @retval:none
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-void io_DMAHandler(COS_uart huart)
+void io_TransOverHandler(COS_uart huart)
 {
 	uint8_t i=0;
 	for(i=0 ; i<MAXIODEVICEAMOUNT ; i++)
@@ -317,10 +294,21 @@ void io_DMAHandler(COS_uart huart)
 		}
 	}
 }
-
-
 /*****************************************************************************************************
- * @name:io_OutputProcess
+ * @name:io_StringMode
+ * @brief:switch io device receive mode to string mode.
+ * @params:
+ *     1.ioDevice:pointer of io device.
+ * @retval: none
+ * @author: Wang Geng Jie
+ *****************************************************************************************************/
+void io_StringMode(COS_io *ioDevice, void(*Stringcb)(char*))
+{
+	ioDevice->Stringcb = Stringcb;
+	ioDevice->ReceiveMode = STRING_MODE;
+}
+/*****************************************************************************************************
+ * @name:_io_OutputProcess
  * @brief:check whether there is data in output buffers waiting for transmitting and adjust main
  *     output buffer dynamically.
  * @params:
@@ -328,7 +316,7 @@ void io_DMAHandler(COS_uart huart)
  * @retval:none
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-void io_OutputProcess(COS_io *ioDevice)
+void _io_OutputProcess(COS_io *ioDevice)
 {
 	/* if io device is transmitting data, it won't transmit data again. */
 	if(ioDevice->Outputing)
@@ -368,47 +356,58 @@ void io_OutputProcess(COS_io *ioDevice)
 }
 
 /*****************************************************************************************************
- * @name:io_InputProcess
+ * @name:_io_InputProcess
  * @brief:process input data, mostly process the commands that are input into input buffer of io device.
  * @params:
  *     1.ioDevice:pointer of io device.
  * @retval:none
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-void io_InputProcess(COS_io *ioDevice)
+void _io_InputProcess(COS_io *ioDevice)
 {
-	if(io_InputBufEmpty(ioDevice))
+	uint32_t LineLength = 0;
+	char Line[256] = {0};
+
+	if(_io_InputBufEmpty(ioDevice))
 		return ;
 
 	if(ioDevice->ReceiveMode==PACKAGE_MODE)
 	{
-		while(!io_InputBufEmpty(ioDevice))
+		while(!_io_InputBufEmpty(ioDevice))
 		{
-			io_PackageProcess(ioDevice);
+			_io_PackageProcess(ioDevice);
 		}
 	}
 	else if(ioDevice->ReceiveMode==COMMAND_MODE)
 	{
-		char Cmd[256] = {0};
-		uint32_t CmdLineLength = 0;
-
-		/* io_GetLine() returns 0 when no command is got */
-		CmdLineLength = io_GetLine(ioDevice, (uint8_t*)Cmd, 256);
-		if(CmdLineLength!=0)
+		/* _io_GetLine() returns 0 when no command is got */
+		LineLength = _io_GetLine(ioDevice, (uint8_t*)Line, 256);
+		if(LineLength!=0)
 		{
-			io_CmdProcess(ioDevice->CmdList, Cmd);
+			_io_CmdProcess(ioDevice->CmdList, Line);
+		}
+	}
+	else if(ioDevice->ReceiveMode==STRING_MODE)
+	{
+		LineLength = _io_GetLine(ioDevice, (uint8_t*)Line, 256);
+		if(LineLength!=0)
+		{
+			if(ioDevice->Stringcb!=NULL)
+				ioDevice->Stringcb(Line);
+			else
+				COS_Logf(err,"io device '%s' haven't set string callback function.",ioDevice->Name);
 		}
 	}
 	else
 	{
+		COS_Logf(err,"io device '%s' working at wrong mode.",ioDevice->Name);
 		return;
 	}
-
 }
 
 
 /*****************************************************************************************************
- * @name:io_vprintf
+ * @name:_io_vprintf
  * @brief:generate formatted data and write data to current activated buffer.
  * @params:
  *     1.ioDevice:pointer of io device.
@@ -417,7 +416,7 @@ void io_InputProcess(COS_io *ioDevice)
  * @retval:none
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-void io_vprintf(COS_io *ioDevice,const char *fmt, va_list ap)
+void _io_vprintf(COS_io *ioDevice,const char *fmt, va_list ap)
 {
 	uint8_t *DataDst = NULL;
 	uint32_t OutBufSpareSpace = 0;
@@ -455,7 +454,7 @@ void io_vprintf(COS_io *ioDevice,const char *fmt, va_list ap)
 	 * activated buffer must be sent right now */
 	if(_io_GetSpareOutBuf(ioDevice, &DataDst)==1)
 	{
-		io_OutputProcess(ioDevice);
+		_io_OutputProcess(ioDevice);
 	}
 }
 /*****************************************************************************************************
@@ -477,7 +476,7 @@ void io_UartRxIntHandler(COS_uart huart)
 		{
 			if(huart->Instance->SR & 0x00000020)
 			{
-				io_InputBufWrite(_iob[i],(uint8_t*)&huart->Instance->DR,1);
+				_io_InputBufWrite(_iob[i],(uint8_t*)&huart->Instance->DR,1);
 			}
 		}
 	}
@@ -531,7 +530,7 @@ void io_SendData(COS_io *ioDevice, void *pData, uint32_t Length)
 	if(Length>OutBufSpareSpace)
 	{
 		memcpy(DataDst,pData,OutBufSpareSpace);
-		io_OutputProcess(ioDevice);
+		_io_OutputProcess(ioDevice);
 		DataSentLen = OutBufSpareSpace;
 		OutBufSpareSpace = _io_GetSpareOutBuf(ioDevice, &DataDst);
 		memcpy(DataDst,pData + DataSentLen,OutBufSpareSpace);
@@ -622,7 +621,7 @@ void _io_Transmit(COS_io *ioDevice, uint8_t *pData, uint32_t Length)
 }
 
 /*****************************************************************************************************
- * @name:io_InputBufWrite
+ * @name:_io_InputBufWrite
  * @brief:write data of a specified length.
  * @params:
  *     1.ioDevice:pointer of io device.
@@ -631,7 +630,7 @@ void _io_Transmit(COS_io *ioDevice, uint8_t *pData, uint32_t Length)
  * @retval:none
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-void io_InputBufWrite(COS_io *ioDevice, uint8_t *pData, uint32_t Length)
+void _io_InputBufWrite(COS_io *ioDevice, uint8_t *pData, uint32_t Length)
 {
 	uint32_t RestDataLen = Length;
 	uint32_t DataIndex = 0;
@@ -679,7 +678,7 @@ void _io_InputBufWriteByte(COS_io *ioDevice, uint8_t Data)
 
 
 /*****************************************************************************************************
- * @name:io_GetLine
+ * @name:_io_GetLine
  * @brief:read a string end of '\n' and write the string into 'pDataDst'.
  * @params:
  *     1.ioDevice:pointer of io device.
@@ -688,12 +687,12 @@ void _io_InputBufWriteByte(COS_io *ioDevice, uint8_t Data)
  * @retval: actual length of string that be written to destination.
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-uint32_t io_GetLine(COS_io *ioDevice, uint8_t *pDataDst, uint32_t DstLength)
+uint32_t _io_GetLine(COS_io *ioDevice, uint8_t *pDataDst, uint32_t DstLength)
 {
 	uint32_t DataLength = 0;
 	uint32_t InputDataIndex = ioDevice->InputTailIndex;
 
-	if(io_InputBufEmpty(ioDevice))
+	if(_io_InputBufEmpty(ioDevice))
 	{
 		return 0;
 	}
@@ -719,7 +718,8 @@ uint32_t io_GetLine(COS_io *ioDevice, uint8_t *pDataDst, uint32_t DstLength)
 			RealDataLen = io_GetData(ioDevice,pDataDst,DstLength);
 
 			/* remove rest of original data and '\n' */
-			io_InputBufRemove(ioDevice,DataLength-DstLength+1);
+			_io_InputBufRemove(ioDevice,DataLength-DstLength+1);
+			COS_Logf(notice,"io device '%s' got incomplete line:string temp buffer not big enough.",ioDevice->Name);
 		}
 		else
 		{
@@ -727,7 +727,7 @@ uint32_t io_GetLine(COS_io *ioDevice, uint8_t *pDataDst, uint32_t DstLength)
 			RealDataLen = io_GetData(ioDevice,pDataDst,DataLength);
 
 			/* remove last '\n' */
-			io_InputBufRemoveByte(ioDevice);
+			_io_InputBufRemoveByte(ioDevice);
 		}
 
 		return RealDataLen;
@@ -790,7 +790,7 @@ uint32_t io_GetData(COS_io *ioDevice, uint8_t *pDataDst, uint32_t Length)
 uint8_t _io_GetByte(COS_io *ioDevice, uint8_t *pDataDst)
 {
 	uint8_t Error = 0;
-	if(!io_InputBufEmpty(ioDevice))
+	if(!_io_InputBufEmpty(ioDevice))
 	{
 		*pDataDst = ioDevice->InputBuf[ioDevice->InputTailIndex];
 
@@ -807,7 +807,7 @@ uint8_t _io_GetByte(COS_io *ioDevice, uint8_t *pDataDst)
 
 
 /*****************************************************************************************************
- * @name:io_InputBufRemove
+ * @name:_io_InputBufRemove
  * @brief:remove data of specified length.
  * @params:
  *     1.ioDevice:pointer of io device.
@@ -815,11 +815,11 @@ uint8_t _io_GetByte(COS_io *ioDevice, uint8_t *pDataDst)
  * @retval: none
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-void io_InputBufRemove(COS_io *ioDevice, uint32_t Length)
+void _io_InputBufRemove(COS_io *ioDevice, uint32_t Length)
 {
 	for(uint8_t i=0 ; i<Length ; i++)
 	{
-		if(io_InputBufRemoveByte(ioDevice)==0)
+		if(_io_InputBufRemoveByte(ioDevice)==0)
 		{
 			break;
 		}
@@ -830,17 +830,17 @@ void io_InputBufRemove(COS_io *ioDevice, uint32_t Length)
 
 
 /*****************************************************************************************************
- * @name:io_InputBufRemoveByte
+ * @name:_io_InputBufRemoveByte
  * @brief:remove one byte from input buffer.
  * @params:
  *     1.ioDevice:pointer of io device.
  * @retval: 1 if remove successfully, 0 if remove fail.
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-uint8_t io_InputBufRemoveByte(COS_io *ioDevice)
+uint8_t _io_InputBufRemoveByte(COS_io *ioDevice)
 {
 	uint8_t Error = 0;
-	if(!io_InputBufEmpty(ioDevice))
+	if(!_io_InputBufEmpty(ioDevice))
 	{
 		_io_InputBufRetreatPointer(ioDevice);
 		Error = 1;
@@ -852,14 +852,14 @@ uint8_t io_InputBufRemoveByte(COS_io *ioDevice)
 
 
 /*****************************************************************************************************
- * @name:io_InputBufReset
+ * @name:_io_InputBufReset
  * @brief:Reset and clear input buffer.
  * @params:
  *     1.ioDevice:pointer of io device.
  * @retval:none
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-void io_InputBufReset(COS_io *ioDevice)
+void _io_InputBufReset(COS_io *ioDevice)
 {
 	ioDevice->InputHeadIndex = 0;
 	ioDevice->InputTailIndex = 0;
@@ -869,14 +869,14 @@ void io_InputBufReset(COS_io *ioDevice)
 
 
 /*****************************************************************************************************
- * @name:io_InputBufFull
+ * @name:_io_InputBufFull
  * @brief:check whether input buffer is full.
  * @params:
  *     1.ioDevice:pointer of io device.
  * @retval: 1 if full, 0 if not full.
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-uint8_t io_InputBufFull(COS_io *ioDevice)
+uint8_t _io_InputBufFull(COS_io *ioDevice)
 {
 	return ioDevice->InputBufFull;
 }
@@ -884,14 +884,14 @@ uint8_t io_InputBufFull(COS_io *ioDevice)
 
 
 /*****************************************************************************************************
- * @name:io_InputBufEmpty
+ * @name:_io_InputBufEmpty
  * @brief:check whether input buffer is empty.
  * @params:
  *     1.ioDevice:pointer of io device.
  * @retval: 1 if empty, 0 if not empty.
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-uint8_t io_InputBufEmpty(COS_io *ioDevice)
+uint8_t _io_InputBufEmpty(COS_io *ioDevice)
 {
 	return (!ioDevice->InputBufFull && (ioDevice->InputHeadIndex == ioDevice->InputTailIndex));
 }
@@ -899,14 +899,14 @@ uint8_t io_InputBufEmpty(COS_io *ioDevice)
 
 
 /*****************************************************************************************************
- * @name:io_InputBufCapacity
+ * @name:_io_InputBufCapacity
  * @brief:get input buffer capacity.
  * @params:
  *     1.ioDevice:pointer of io device.
  * @retval: the capacity of input buffer.
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-uint32_t io_InputBufCapacity(COS_io *ioDevice)
+uint32_t _io_InputBufCapacity(COS_io *ioDevice)
 {
 	return ioDevice->InputBufSize;
 }
@@ -914,14 +914,14 @@ uint32_t io_InputBufCapacity(COS_io *ioDevice)
 
 
 /*****************************************************************************************************
- * @name:io_InputBufGetSize
+ * @name:_io_InputBufGetSize
  * @brief:get current occupied space size.
  * @params:
  *     1.ioDevice:pointer of io device.
  * @retval: the current occupied space size.
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-uint32_t io_InputBufGetSize(COS_io *ioDevice)
+uint32_t _io_InputBufGetSize(COS_io *ioDevice)
 {
 	int32_t Size = ioDevice->InputBufSize;
 	if(!(ioDevice->InputBufFull))
@@ -941,14 +941,14 @@ uint32_t io_InputBufGetSize(COS_io *ioDevice)
 
 
 /*****************************************************************************************************
- * @name:io_InputBufGetSpare
+ * @name:_io_InputBufGetSpare
  * @brief:get size of spare space of input buffer.
  * @params:
  *     1.ioDevice:pointer of io device.
  * @retval: spare space size.
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-uint32_t io_InputBufGetSpare(COS_io *ioDevice)
+uint32_t _io_InputBufGetSpare(COS_io *ioDevice)
 {
 	int32_t SpareSize = ioDevice->InputBufSize;
 	if(!(ioDevice->InputBufFull))

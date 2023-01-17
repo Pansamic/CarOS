@@ -26,6 +26,10 @@ extern "C" {
 
 const uint8_t DefaultPkgHead[2]={PKG_DEFAULT_HEAD1,PKG_DEFAULT_HEAD2};
 
+/*
+ * @brief:Default data package format, loaded when calls 'io_PackageMode()' function.
+ *     If you want to use customized package format, please call 'io_SetPkgParseFmt()'
+ * */
 const COS_PkgFmt DefaultPkgFmt=
 {
     1,               // enable package head
@@ -40,9 +44,13 @@ const COS_PkgFmt DefaultPkgFmt=
 };
 
 uint8_t  ExamPkgFmt             (COS_PkgFmt *PkgFmt);
+
+/* Auxiliary functions of check algorithm functions */
 void     InvertUint8            (uint8_t *dBuf, uint8_t *srcBuf);
 void     InvertUint16           (uint16_t *dBuf,uint16_t *srcBuf);
 void     InvertUint32           (uint32_t *dBuf,uint32_t *srcBuf);
+
+
 /*****************************************************************************************************
  * @name:io_PackageMode
  * @brief:start io device receive stream mode, which enables io device to tramsmit binary data directly
@@ -95,12 +103,28 @@ void io_PackageMode(COS_io *ioDevice, uint8_t FormatEnable, uint8_t RawDataSize,
 	/* set receive mode as stream mode */
 	ioDevice->ReceiveMode = PACKAGE_MODE;
 }
-void io_PkgProcessorDeinit(COS_io *ioDevice)
+/*****************************************************************************************************
+ * @name:_io_PkgProcessorDeinit
+ * @brief:
+ * @params:
+ *     1.ioDevice:pointer of io device
+ * @retval:none
+ * @author: Wang Geng Jie
+ *****************************************************************************************************/
+void _io_PkgProcessorDeinit(COS_io *ioDevice)
 {
 	cos_free(ioDevice->PkgProcessor->DataDst);
 	cos_free(ioDevice->PkgProcessor->PackageFormat);
 	cos_free(ioDevice->PkgProcessor);
 }
+/*****************************************************************************************************
+ * @name:io_SetPkgParseFmt
+ * @brief:Sets the io device to receive data package and parse the package in the specified format.
+ * @params:
+ *     1.ioDevice:pointer of io device
+ * @retval:none
+ * @author: Wang Geng Jie
+ *****************************************************************************************************/
 void io_SetPkgParseFmt(COS_io *ioDevice, COS_PkgFmt *PkgFmt)
 {
 	if(ioDevice->PkgProcessor==NULL)
@@ -116,14 +140,14 @@ void io_SetPkgParseFmt(COS_io *ioDevice, COS_PkgFmt *PkgFmt)
 	ioDevice->PkgProcessor->FormatEnable = 1;
 }
 /*****************************************************************************************************
- * @name:io_PackageProcess
- * @brief:get data package from input buffer and call stream callback function.
+ * @name:_io_PackageProcess
+ * @brief:get raw data from input buffer and call stream callback function.
  * @params:
  *     1.ioDevice:pointer of io device
  * @retval: 1 if process secessfully ; 0 if process failed.
  * @author: Wang Geng Jie
  *****************************************************************************************************/
-uint8_t io_PackageProcess(COS_io *ioDevice)
+uint8_t _io_PackageProcess(COS_io *ioDevice)
 {
 	int ErrorCode = 0;
 
@@ -154,12 +178,12 @@ uint8_t io_PackageProcess(COS_io *ioDevice)
 }
 /*****************************************************************************************************
  * @name:io_SendDataPackage
- * @brief:send a data package with identifier in front of raw data and check byte at the end of raw
- *     data.
+ * @brief:send a data package with a restriction of a specified package format.
  * @params:
  *     1.ioDevice:pointer of io device.
  *     2.pData:pointer of raw data.
  *     3.Length:length of raw data.
+ *     4.PkgFmt:pointer of data package format struct--'COS_PkgFmt'.
  * @retval: none
  * @author: Wang Geng Jie
  *****************************************************************************************************/
@@ -233,9 +257,7 @@ void io_SendDataPackage(COS_io *ioDevice, void *pData, uint32_t Length, COS_PkgF
  * @brief:get data package from input buffer with package format.
  * @params:
  *     1.ioDevice:pointer of io device.
- *     2.pDataDst:pointer of where data supposed to be written in.
- *     3.PkgLength:size of data package.
- * @retval: -1 if read error ; 0 if empty ; 1 if get successfully
+ * @retval: 1 if get raw data successfully ; 0 if failed to get raw data.
  * @author: Wang Geng Jie
  *****************************************************************************************************/
 uint8_t _io_GetRawData(COS_io *ioDevice)
@@ -259,7 +281,7 @@ uint8_t _io_GetRawData(COS_io *ioDevice)
 			  ioDevice->PkgProcessor->PackageFormat->HeadEnable ? ioDevice->PkgProcessor->PackageFormat->HeadLength : 0+
               ioDevice->PkgProcessor->PackageFormat->TailEnable ? ioDevice->PkgProcessor->PackageFormat->TailLength : 0+
               ChkValSize;
-	if(io_InputBufGetSize(ioDevice)<PkgSize)
+	if(_io_InputBufGetSize(ioDevice)<PkgSize)
 	{
 		return 0;
 	}
@@ -302,7 +324,7 @@ uint8_t _io_GetRawData(COS_io *ioDevice)
 	if(TempHeadIndex<ioDevice->PkgProcessor->PackageFormat->HeadLength)
 	{
 		/* remove useless data */
-		io_InputBufRemove(ioDevice, UselessDataLength);
+		_io_InputBufRemove(ioDevice, UselessDataLength);
 		return 0;
 	}
 	/* else head sequence found successful */
@@ -360,7 +382,7 @@ uint8_t _io_GetRawData(COS_io *ioDevice)
 	{
 		ioDevice->PkgProcessor->DataDst = NULL;
 		/* remove all data */
-		io_InputBufRemove(ioDevice, io_InputBufGetSize(ioDevice));
+		_io_InputBufRemove(ioDevice, _io_InputBufGetSize(ioDevice));
 		return 0;
 	}
 	/* else head sequence found successful */
@@ -382,7 +404,7 @@ uint8_t _io_GetRawData(COS_io *ioDevice)
 			if(ioDevice->InputBuf[(PkgEdInInputBuf + i)%ioDevice->InputBufSize]!=ioDevice->PkgProcessor->PackageFormat->Tail[i])
 			{/* if enters this program block, the package is almost damaged. */
 				UselessDataLength += PkgSize;
-				io_InputBufRemove(ioDevice, UselessDataLength);
+				_io_InputBufRemove(ioDevice, UselessDataLength);
 				return 0;
 			}
 		}
@@ -392,11 +414,11 @@ uint8_t _io_GetRawData(COS_io *ioDevice)
                              /************************/
                              /*      CHECK DATA      */
                              /************************/
-	io_InputBufRemove(ioDevice, UselessDataLength);
-	io_InputBufRemove(ioDevice, ioDevice->PkgProcessor->PackageFormat->HeadLength);
+	_io_InputBufRemove(ioDevice, UselessDataLength);
+	_io_InputBufRemove(ioDevice, ioDevice->PkgProcessor->PackageFormat->HeadLength);
 	io_GetData(ioDevice, ioDevice->PkgProcessor->DataDst, ActualRawLen);
-	io_InputBufRemove(ioDevice, ChkValSize);
-	io_InputBufRemove(ioDevice, ioDevice->PkgProcessor->PackageFormat->TailLength);
+	_io_InputBufRemove(ioDevice, ChkValSize);
+	_io_InputBufRemove(ioDevice, ioDevice->PkgProcessor->PackageFormat->TailLength);
 	/* no check */
 	if(!ioDevice->PkgProcessor->PackageFormat->CheckValEnable)
 	{
@@ -410,7 +432,7 @@ uint8_t _io_GetRawData(COS_io *ioDevice)
 		if(icv != ioDevice->InputBuf[PkgEdInInputBuf])
 		{
 			UselessDataLength += PkgSize;
-			io_InputBufRemove(ioDevice, UselessDataLength);
+			_io_InputBufRemove(ioDevice, UselessDataLength);
 			return 0;
 		}
 	}
@@ -422,7 +444,7 @@ uint8_t _io_GetRawData(COS_io *ioDevice)
 			if(icv != ioDevice->InputBuf[PkgEdInInputBuf])
 			{
 				UselessDataLength += PkgSize;
-				io_InputBufRemove(ioDevice, UselessDataLength);
+				_io_InputBufRemove(ioDevice, UselessDataLength);
 				return 0;
 			}
 		}
@@ -431,7 +453,7 @@ uint8_t _io_GetRawData(COS_io *ioDevice)
 			if(icv != ioDevice->InputBuf[(PkgEdInInputBuf+ioDevice->PkgProcessor->PackageFormat->TailLength)%ioDevice->InputBufSize])
 			{
 				UselessDataLength += PkgSize;
-				io_InputBufRemove(ioDevice, UselessDataLength);
+				_io_InputBufRemove(ioDevice, UselessDataLength);
 				return 0;
 			}
 		}
@@ -442,7 +464,14 @@ uint8_t _io_GetRawData(COS_io *ioDevice)
 }
 
 
-
+/*****************************************************************************************************
+ * @name:ExamPkgFmt
+ * @brief:examine whether the package format is legal.
+ * @params:
+ *     1.PkgFmt:pointer of package format definition struct.
+ * @retval: 1 if package format is correct ; 0 if package format is illegal.
+ * @author: Wang Geng Jie
+ *****************************************************************************************************/
 uint8_t ExamPkgFmt(COS_PkgFmt *PkgFmt)
 {
 	if(PkgFmt==NULL)

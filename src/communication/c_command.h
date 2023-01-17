@@ -83,10 +83,12 @@ typedef struct ioCmdDefinition
  *                                                                                            *
  **********************************************************************************************/
 /* command related */
+void       io_CommandMode             (COS_io *ioDevice);
 void       io_AddCmd                  (COS_io *ioDevice, const char *CmdName, const char *ParamsDescription, void* CmdCallbackFunc);
-void       io_CmdProcess              (COS_Cmd *CmdList, char *CmdStr);
+
+void      _io_CmdProcess              (COS_Cmd *CmdList, char *CmdStr);
 int       _io_ScanWriteParamData      (char *str, uint8_t ParamType, uint8_t *pDataDst);
-void       io_CmdExecute              (COS_Cmd *Cmd);
+void      _io_CmdExecute              (COS_Cmd *Cmd);
 uint8_t   _io_GetParamSizeByStr       (char *ParamStr);
 uint8_t   _io_GetParamType            (char *Str);
 uint8_t   _io_GetParamSizeByTypeCode  (uint8_t ParamType);
