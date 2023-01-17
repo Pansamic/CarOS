@@ -1,0 +1,10 @@
+../CarOS/src/debug/c_debug.c:73:6:COS_DebugInit	8	static
+../CarOS/src/debug/c_debug.c:97:6:_Log_Write	40	static
+../CarOS/src/debug/c_debug.c:189:16:Log_Filter	16	static
+../CarOS/src/debug/c_debug.c:298:14:CutFileName	24	static
+../CarOS/src/debug/c_debug.c:322:6:COS_PrintLog	16	static
+../CarOS/src/debug/c_debug.c:345:13:Log_PrintNode	40	static
+../CarOS/src/debug/c_debug.c:368:6:COS_PrintLogByLevel	24	static
+../CarOS/src/debug/c_debug.c:393:6:COS_PrintLogByFile	24	static
+../CarOS/src/debug/c_debug.c:419:6:COS_PrintLogByFunction	24	static
+../CarOS/src/debug/c_debug.c:445:6:COS_PrintLogByString	24	static

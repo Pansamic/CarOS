@@ -1,0 +1,5 @@
+../CarOS/src/peri_driver/distance_measure_sensor/laser_TF_Luna/c_tf_luna.c:44:9:AddPeri_TFLuna	56	static
+../CarOS/src/peri_driver/distance_measure_sensor/laser_TF_Luna/c_tf_luna.c:59:6:TFLuna_Reset	16	static
+../CarOS/src/peri_driver/distance_measure_sensor/laser_TF_Luna/c_tf_luna.c:67:10:TFLuna_GetDistance	16	static
+../CarOS/src/peri_driver/distance_measure_sensor/laser_TF_Luna/c_tf_luna.c:72:10:TFLuna_GetAmp	16	static
+../CarOS/src/peri_driver/distance_measure_sensor/laser_TF_Luna/c_tf_luna.c:77:6:TFLuna_ioPkgProccb	24	static,ignoring_inline_asm

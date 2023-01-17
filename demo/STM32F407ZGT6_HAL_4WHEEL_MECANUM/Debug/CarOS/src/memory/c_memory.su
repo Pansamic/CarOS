@@ -1,0 +1,9 @@
+../CarOS/src/memory/c_memory.c:60:6:__memcpy	32	static
+../CarOS/src/memory/c_memory.c:70:6:__memset	32	static
+../CarOS/src/memory/c_memory.c:77:6:Mem_Init	8	static
+../CarOS/src/memory/c_memory.c:85:9:Mem_GetUsedRate	16	static
+../CarOS/src/memory/c_memory.c:98:10:__malloc	32	static
+../CarOS/src/memory/c_memory.c:127:9:__free	32	static
+../CarOS/src/memory/c_memory.c:152:6:cos_free	24	static
+../CarOS/src/memory/c_memory.c:162:7:cos_malloc	24	static
+../CarOS/src/memory/c_memory.c:176:7:cos_realloc	24	static

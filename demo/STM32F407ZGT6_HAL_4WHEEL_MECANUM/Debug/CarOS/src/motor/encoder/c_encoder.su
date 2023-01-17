@@ -1,0 +1,2 @@
+../CarOS/src/motor/encoder/c_encoder.c:36:6:EncoderInit	24	static
+../CarOS/src/motor/encoder/c_encoder.c:66:6:EncoderUpdate	16	static

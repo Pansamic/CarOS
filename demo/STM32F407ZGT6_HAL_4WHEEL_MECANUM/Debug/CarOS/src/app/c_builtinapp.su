@@ -1,0 +1,3 @@
+../CarOS/src/app/c_builtinapp.c:47:6:PrintLogcb	16	static
+../CarOS/src/app/c_builtinapp.c:54:6:PackageModecb	16	static
+../CarOS/src/app/c_builtinapp.c:60:6:PackageTest	16	static

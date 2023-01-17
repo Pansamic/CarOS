@@ -1,0 +1,5 @@
+../Core/Src/freertos.c:77:6:vApplicationGetIdleTaskMemory	24	static
+../Core/Src/freertos.c:91:6:MX_FREERTOS_Init	104	static
+../Core/Src/freertos.c:138:6:StartDefaultTask	16	static
+../Core/Src/freertos.c:156:6:AdjustSpeed	24	static
+../Core/Src/freertos.c:187:6:CarOS_ioProcess	16	static

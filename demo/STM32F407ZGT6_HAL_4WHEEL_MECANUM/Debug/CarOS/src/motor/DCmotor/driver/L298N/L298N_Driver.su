@@ -1,0 +1,5 @@
+../CarOS/src/motor/DCmotor/driver/L298N/L298N_Driver.c:36:6:L298N_Init	32	static
+../CarOS/src/motor/DCmotor/driver/L298N/L298N_Driver.c:66:6:L298N_SetMotorVelocity	24	static
+../CarOS/src/motor/DCmotor/driver/L298N/L298N_Driver.c:105:13:L298N_SetRotateForward	16	static
+../CarOS/src/motor/DCmotor/driver/L298N/L298N_Driver.c:136:13:L298N_SetRotateBackward	16	static
+../CarOS/src/motor/DCmotor/driver/L298N/L298N_Driver.c:160:13:L298N_StopMotor	16	static
