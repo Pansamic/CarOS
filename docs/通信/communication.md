@@ -697,6 +697,58 @@ io_SetPkgParseFmt(&(NewTFLuna->ioDevice),&TFLunaPkgFmt);
 
 #### 5.4.1 数据包格式结构体
 
+```c
+typedef struct PackageDefinition
+{
+	uint8_t  HeadEnable;
+	const uint8_t *Head;
+	uint8_t  HeadLength;
+
+	uint8_t  CheckValEnable;
+	uint16_t(*CheckAlgorithm)(uint8_t *,uint32_t);
+
+	uint8_t  TailEnable;
+	const uint8_t *Tail;
+	uint8_t  TailLength;
+
+	uint8_t  TailBehindChk;
+
+}COS_PkgFmt;
+```
+**成员列表**
+
+1. **HeadEnable**:启用数据包头
+2. **Head**:数据包头序列
+3. **HeadLength**:数据包头长度
+4. **CheckValEnable**:启用校验值
+5. **CheckAlgorithm**:校验算法，函数指针。
+6. **TailEnable**:启用数据包尾
+7. **Tail**:数据包尾序列
+8. **TailLength**:数据包尾长度
+9. **TailBehindChk**:若为1则表示数据包尾在校验值之后出现
+
+**使用示例**
+
+```c
+const COS_PkgFmt DefaultPkgFmt=
+{
+    1,               // enable package head
+    DefaultPkgHead,  // use default head sequence
+    2,               // head sequence length equals two
+    1,               // enable data check
+    Chk_XOR,         // use XOR check algorithm
+    0,               // disable tail
+    NULL,            // use null tail sequence
+    0,               // tail sequence length equals 0
+    0                // unnecessary value, because tail is disabled
+};
+```
+
+调用`io_SetPkgParseFmt(COS_io*,COS_PkgFmt*)`函数加载该格式至io设备。或者调用`io_SendDataPackage(COS_io*,void*,uint32_t,COS_PkgFmt*)`函数来按照上文创建的`DefaultPkgFmt`格式发送数据包。
+
+
 #### 5.4.2 数据包解析过程
+
+暂无，参照代码文件及其注释  `CarOS/src/communication/c_pkgproc.c`
 
 ## 6. 模块拆卸指导
