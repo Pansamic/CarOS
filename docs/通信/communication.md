@@ -36,7 +36,7 @@ CarOS通信模块基于MCU的串口。
 
 通信模块实现了使用电脑串口调试工具向MCU发送带有数值的命令（字符串）后，部署在MCU的命令解释器解释命令并从字符串中获取参数值，调用并传参给该命令所对应的函数，以此来实现类似于命令行的功能。
 
-该模块包含的c_communication.h和c_communication.c可以经过简单的删减代码之后移植到任何MCU甚至PC机上，所以可以很方便地移植至ESP32、ESP8266等设备。
+该模块可以经过简单的删减代码之后移植到任何MCU甚至PC机上，所以可以很方便地移植至ESP32、ESP8266等设备。
 
 ## 2. 模块开发前期对于通信模块的想法(可忽略)
 
@@ -81,7 +81,7 @@ typedef struct COS_Cmd
 ```c
 void io_Init(COS_io *ioDevice, 
              const char* Name,
-             UART_HandleTypeDef* huart,
+             COS_uart huart,
              uint8_t *InputBuf,
              uint32_t InputBufLen,
              uint8_t *OutputBuf1,
@@ -138,7 +138,6 @@ void CarOS_ioProcess(void const * argument)
   /* Infinite loop */
   for(;;)
   {
-    osDelay(50);
     io_Process();
   }
   /* USER CODE END CarOS_ioProcess */
@@ -153,7 +152,7 @@ void io_printf(COS_io *ioDevice,const char *fmt,...)
 
 **简介**
 
-该函数将格式化字符串数据写入io设备的输出缓冲区，至于最终的串口发送由[io_OutputProcess()](#round_pushpin-所有io设备的输出处理)函数完成。
+该函数将格式化字符串数据写入io设备的输出缓冲区，至于最终的串口发送由`io_OutputProcess()`函数完成。
 
 **参数列表**
 
@@ -171,7 +170,7 @@ void COS_printf(const char *fmt,...)
 
 该函数可以替代printf()函数，但前提是配置好系统io，配置方法详见CarOS用户手册。
 
-该函数实现的功能是把格式化字符串写入到io设备的输出缓冲区中，至于最终的串口发送由[io_OutputProcess()](#round_pushpin-所有io设备的输出处理)函数完成。
+该函数实现的功能是把格式化字符串写入到io设备的输出缓冲区中，至于最终的串口发送由`io_OutputProcess()`函数完成。
 
 **参数列表**
 
@@ -191,7 +190,7 @@ void io_SendData(COS_io *ioDevice, uint8_t *pData, uint32_t Length);
 
 **简介**
 
-该函数将待发送的数据写入io设备发送缓冲区，至于最终的串口发送由[io_OutputProcess()](#round_pushpin-所有io设备的输出处理)函数完成。
+该函数将待发送的数据写入io设备发送缓冲区，至于最终的串口发送由`io_OutputProcess()`函数完成。
 
 **参数列表**
 
